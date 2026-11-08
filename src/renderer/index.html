@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WeekFlow 周流</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="boot" class="boot">
+      <div class="boot-mark" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <p>正在翻开这一周…</p>
+    </div>
+    <div id="app" aria-live="off"></div>
+    <div id="overlay"></div>
+    <div id="toast" class="toast-layer" aria-live="polite"></div>
+    <div id="confetti" class="confetti-layer" aria-hidden="true"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

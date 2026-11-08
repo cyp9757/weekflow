@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+.npm-cache/
+*.log
+.env
+.env.*
+scripts/import-bili-plan.mjs
+scripts/import-stock-basics.mjs
+scripts/import-vibe-plan.mjs
+docs/images/task-editor.jpg

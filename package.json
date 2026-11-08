@@ -1,0 +1,25 @@
+{
+  "name": "weekflow",
+  "productName": "WeekFlow",
+  "version": "0.9.0",
+  "description": "A quiet, transparent weekly planner that lives on your desktop.",
+  "type": "module",
+  "main": "src/main/main.mjs",
+  "author": "WeekFlow",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node --test test/*.test.mjs",
+    "icons": "python scripts/make-icons.py",
+    "pack": "node scripts/build.mjs",
+    "dist": "node scripts/build.mjs && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/zip.ps1",
+    "screenshot": "electron . --screenshot",
+    "selftest": "electron . --selftest",
+    "publish:github": "node scripts/publish-github-api.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^43.3.0"
+  }
+}
