@@ -31,4 +31,18 @@ pnpm publish:github
 - `scripts/import-stock-basics.mjs`
 - `scripts/import-vibe-plan.mjs`
 
-以后更新代码后，重复运行 `pnpm publish:github` 即可创建新提交。
+## 版本与更新日志
+
+发布前先：
+
+1. 修改 `package.json` 的 `version`；
+2. 在 `CHANGELOG.md` 增加同版本号的一节；
+3. 运行 `pnpm publish:github`。
+
+脚本会：
+
+- 用 `release: vX.Y.Z` 作为提交信息；
+- 创建 `vX.Y.Z` Git tag；
+- 用 `CHANGELOG.md` 对应章节作为 GitHub Release 说明。
+
+`scripts/publish-github-api.mjs` 只上传源码/文档，不上传个人数据。以后更新代码后，重复运行 `pnpm publish:github` 即可。

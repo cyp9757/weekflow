@@ -23,6 +23,20 @@ if (!token) {
   process.exit(2);
 }
 
+const packageJson = JSON.parse(await fs.readFile(path.join(ROOT, 'package.json'), 'utf8'));
+const version = packageJson.version;
+const tagName = `v${version}`;
+const changelog = await fs.readFile(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+const sectionMarker = `## [${version}]`;
+const sectionStart = changelog.indexOf(sectionMarker);
+const nextSection = changelog.indexOf('\n## [', sectionStart + sectionMarker.length);
+const releaseBody =
+  sectionStart >= 0
+    ? changelog
+        .slice(sectionStart + sectionMarker.length, nextSection > sectionStart ? nextSection : undefined)
+        .trim()
+    : `Release ${version}`;
+
 async function api(method, url, body) {
   const response = await fetch(`${API}${url}`, {
     method,
@@ -104,7 +118,7 @@ try {
 }
 
 const commit = await api('POST', `/repos/${OWNER}/${REPO}/git/commits`, {
-  message: `Publish WeekFlow source (${new Date().toISOString().slice(0, 10)})`,
+  message: `release: v${version}`,
   tree: tree.sha,
   parents: parent ? [parent] : [],
   author: { name: OWNER, email: 'cyp592415664@gmail.com' },
@@ -123,5 +137,29 @@ if (parent) {
   });
 }
 
+try {
+  await api('POST', `/repos/${OWNER}/${REPO}/git/refs`, {
+    ref: `refs/tags/${tagName}`,
+    sha: commit.sha,
+  });
+} catch (error) {
+  if (!String(error.message).includes('422')) throw error;
+  console.log(`Tag ${tagName} already exists; skipped.`);
+}
+
+try {
+  await api('POST', `/repos/${OWNER}/${REPO}/releases`, {
+    tag_name: tagName,
+    name: tagName,
+    body: releaseBody,
+    draft: false,
+    prerelease: false,
+  });
+} catch (error) {
+  if (!String(error.message).includes('422')) throw error;
+  console.log(`Release ${tagName} already exists; skipped.`);
+}
+
 console.log(`\nPublished ${files.length} files to https://github.com/${OWNER}/${REPO}`);
+console.log(`Version: ${tagName}`);
 console.log(`Commit: ${commit.sha}`);
