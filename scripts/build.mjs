@@ -109,6 +109,7 @@ for (const appPath of appPaths) {
   await fs.writeFile(path.join(appPath, 'HOW_TO_START.txt'), startHelp.replace(/\n/g, '\r\n'), 'utf8');
   await fs.cp(path.join(ROOT, 'docs'), path.join(appPath, 'docs'), { recursive: true });
   await fs.copyFile(path.join(ROOT, 'README.md'), path.join(appPath, 'README.md'));
+  await fs.copyFile(path.join(ROOT, 'CHANGELOG.md'), path.join(appPath, 'CHANGELOG.md'));
   console.log(`packaged: ${appPath}`);
   console.log(`build id: ${buildId}`);
 }

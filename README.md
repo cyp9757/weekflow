@@ -2,7 +2,7 @@
 
 一个挂在桌面边缘的透明每周待办小组件。把三个月的大目标拆成十二周，把这一周过完；完成事情攒积分，积分可以换奖励，也可以去奖池里赌一次运气。
 
-**当前版本：0.10.1** · [更新日志](CHANGELOG.md)
+**当前版本：0.10.2** · [更新日志](CHANGELOG.md)
 
 ![周流 · 本周](docs/images/week.jpg)
 
@@ -25,7 +25,7 @@
 
 ## 快速开始
 
-1. 解压 `WeekFlow-0.10.1-win-x64-portable.zip` 到任意可写文件夹（不要直接在压缩包里运行）。
+1. 解压 `WeekFlow-0.10.2-win-x64-portable.zip` 到任意可写文件夹（不要直接在压缩包里运行）。
 2. **双击 `START_WEEKFLOW.cmd`**，不要直接点 `WeekFlowApp.exe`。尤其是把文件夹放在 DSH 的 `default-workspace` 下时，Windows 会阻止其中的 GUI 程序直接启动；启动器会先把运行文件复制到 `%LOCALAPPDATA%\WeekFlow\runtime`，再从那里启动。首次会多等几秒。
 3. 默认在屏幕右上角出现。可直接拖动顶部区域移动；右上角 `—` 收起成桌面小条。
 4. 打开 `设置 → AI 规划`，填入你的模型接口，点“测试”：
