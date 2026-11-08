@@ -389,6 +389,7 @@ export const ACTIONS = {
   },
   'go-plans': (ctx) => ctx.navigate('plans'),
   'go-rewards': (ctx) => ctx.navigate('rewards'),
+  'go-redemptions': (ctx) => ctx.navigate('redemptions'),
   'go-ai-settings': (ctx) => {
     ctx.closeModal();
     ctx.ui.aiOpen = true;
@@ -1397,6 +1398,10 @@ export const ACTIONS = {
   'draw-again': (ctx, el) => startDraw(ctx, el.dataset.id),
   'rewards-tab': (ctx, el) => {
     ctx.ui.rewardsTab = el.dataset.tab;
+    ctx.render();
+  },
+  'redemptions-tab': (ctx, el) => {
+    ctx.ui.redemptionsTab = el.dataset.tab;
     ctx.render();
   },
 

@@ -14,6 +14,7 @@ import { clampText, escapeHtml, relativeTaskWeek, weekRange } from './lib/format
 import { renderWeek } from './views/week.js';
 import { renderPlans } from './views/plans.js';
 import { renderRewards } from './views/rewards.js';
+import { renderRedemptionsView } from './views/redemptions.js';
 import { renderSettings } from './views/settings.js';
 import { renderAppearancePopover } from './views/appearance.js';
 import { renderOverlay, renderToast } from './views/modals.js';
@@ -27,7 +28,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.9.0',
+  version: '0.10.0',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),
@@ -42,6 +43,7 @@ const ctx = {
     quickPanel: null,
     navOpen: false,
     selectedWeek: startOfWeekISO(todayISO()),
+    redemptionsTab: 'all',
     expandedProjects: new Set(),
     showDone: false,
     justDone: null,
@@ -152,6 +154,7 @@ function renderTabs() {
     { id: 'week', label: '本周', icon: 'calendar' },
     { id: 'plans', label: '蓝图', icon: 'layers' },
     { id: 'rewards', label: '奖励', icon: 'gift' },
+    { id: 'redemptions', label: '兑换', icon: 'receipt' },
     { id: 'settings', label: '设置', icon: 'sliders' },
   ];
   return `
@@ -180,6 +183,7 @@ function renderNavHandle() {
 function renderCurrentView() {
   if (ctx.ui.view === 'plans') return renderPlans(ctx);
   if (ctx.ui.view === 'rewards') return renderRewards(ctx);
+  if (ctx.ui.view === 'redemptions') return renderRedemptionsView(ctx);
   if (ctx.ui.view === 'settings') return renderSettings(ctx);
   return renderWeek(ctx);
 }
@@ -379,7 +383,7 @@ function dismissToast() {
 }
 
 function navigate(view) {
-  if (!['week', 'plans', 'rewards', 'settings'].includes(view)) return;
+  if (!['week', 'plans', 'rewards', 'redemptions', 'settings'].includes(view)) return;
   ctx.ui.view = view;
   ctx.ui.quickPanel = null;
   ctx.ui.navOpen = false;
@@ -403,7 +407,7 @@ function openConfirm(options) {
 
 function setViewFromUrl() {
   const requested = params.get('view');
-  if (['week', 'plans', 'rewards', 'settings'].includes(requested)) {
+  if (['week', 'plans', 'rewards', 'redemptions', 'settings'].includes(requested)) {
     ctx.ui.view = requested;
   }
 }
@@ -556,9 +560,9 @@ function setupEvents() {
       ACTIONS['new-task'](ctx);
       return;
     }
-    if ((event.ctrlKey || event.metaKey) && ['1', '2', '3', '4'].includes(event.key)) {
+    if ((event.ctrlKey || event.metaKey) && ['1', '2', '3', '4', '5'].includes(event.key)) {
       event.preventDefault();
-      navigate(['week', 'plans', 'rewards', 'settings'][Number(event.key) - 1]);
+      navigate(['week', 'plans', 'rewards', 'redemptions', 'settings'][Number(event.key) - 1]);
       return;
     }
     if (event.key === 'Tab' && ctx.ui.modal) {
@@ -749,7 +753,7 @@ Object.assign(ctx, {
 
 // Used by the screenshot harness and for quick manual inspection.
 window.__weekflowSetView = (view) => {
-  if (['week', 'plans', 'rewards', 'settings'].includes(view)) {
+  if (['week', 'plans', 'rewards', 'redemptions', 'settings'].includes(view)) {
     ctx.ui.view = view;
     render();
   }

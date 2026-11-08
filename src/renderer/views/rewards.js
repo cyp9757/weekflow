@@ -95,42 +95,6 @@ function renderPool(ctx, pool) {
   `;
 }
 
-function renderRedemptions(ctx) {
-  const items = [...(ctx.state.redemptions || [])].sort((a, b) =>
-    String(b.at).localeCompare(String(a.at)),
-  );
-  return `
-    <div class="section redemption-section">
-      <div class="section-head">
-        <span class="section-title">我的兑换</span>
-        <span class="section-count">${items.length}</span>
-        <span class="section-rule"></span>
-      </div>
-      ${
-        items.length
-          ? `<div class="redemption-list">${items
-              .map((item) => {
-                const used = Boolean(item.usedAt);
-                return `
-                  <div class="redemption-row ${used ? 'used' : ''}">
-                    <span class="redemption-icon">${used ? icon('check', 13) : '🎁'}</span>
-                    <div class="redemption-copy">
-                      <div class="redemption-title">${escapeHtml(item.title)}</div>
-                      <div class="redemption-meta">${formatHistoryTime(item.at)} · ${item.cost} 分 · ${used ? `已核销 ${formatHistoryTime(item.usedAt)}` : '待使用'}</div>
-                    </div>
-                    <button class="redemption-use" data-action="use-redemption" data-id="${item.id}">
-                      ${used ? '撤销核销' : '核销'}
-                    </button>
-                  </div>
-                `;
-              })
-              .join('')}</div>`
-          : '<div class="hint" style="padding:12px 2px">还没有兑换记录。兑换奖励后会出现在这里，使用时点“核销”。</div>'
-      }
-    </div>
-  `;
-}
-
 function renderHistory(ctx) {
   const tab = ctx.ui.rewardsTab || 'rewards';
   const source = (ctx.state.ledger || []).filter(
@@ -186,7 +150,10 @@ export function renderRewards(ctx) {
           <h1 class="page-title">奖励</h1>
           <div class="page-sub">完成一周，换一点真实的快乐。</div>
         </div>
-        <button class="icon-btn" data-action="new-reward" aria-label="添加奖励">${icon('plus', 16)}</button>
+        <div class="page-head-actions">
+          <button class="icon-btn" data-action="go-redemptions" aria-label="查看兑换记录" title="兑换记录">${icon('receipt', 16)}</button>
+          <button class="icon-btn" data-action="new-reward" aria-label="添加奖励">${icon('plus', 16)}</button>
+        </div>
       </div>
 
       <section class="wallet">
@@ -219,8 +186,6 @@ export function renderRewards(ctx) {
               </div>`
         }
       </div>
-
-      ${renderRedemptions(ctx)}
 
       <div class="section">
         <div class="section-head">

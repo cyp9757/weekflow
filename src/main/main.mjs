@@ -37,7 +37,7 @@ const DEBUG_LOG = path.join(OUT_DIR, 'main-debug.log');
 const HOTKEY_CANDIDATES = ['Alt+Shift+W', 'CommandOrControl+Shift+W', 'CommandOrControl+Alt+W'];
 const DEFAULT_BOUNDS = { width: 408, height: 716 };
 const COMPACT_BOUNDS = { width: 380, height: 92 };
-const SCREENSHOT_VIEWS = ['plans', 'rewards', 'settings'];
+const SCREENSHOT_VIEWS = ['plans', 'rewards', 'redemptions', 'settings'];
 
 if (IS_SHOT || IS_SELFTEST) {
   app.setPath('userData', path.join(os.tmpdir(), `weekflow-${IS_SELFTEST ? 'test' : 'shot'}-${process.pid}`));
@@ -860,6 +860,13 @@ async function runSelfTest() {
           spent: beforeReward - ctx.balance,
           redemptionCount: ctx.state.redemptions.length,
         };
+        ctx.navigate('redemptions');
+        await wait(260);
+        results.redemptionsPage = {
+          title: document.querySelector('.page-title')?.textContent,
+          rows: document.querySelectorAll('.redemption-row').length,
+          filters: document.querySelectorAll('[data-action="redemptions-tab"]').length,
+        };
         const redemption = ctx.state.redemptions[0];
         results.redemption = {
           row: Boolean(document.querySelector('.redemption-row')),
@@ -1012,6 +1019,9 @@ async function runSelfTest() {
         results.poolEdit?.weightSteps?.includes('any') &&
         results.poolEdit?.weightsValid &&
         results.redeem?.spent === 10 &&
+        results.redemptionsPage?.title === '兑换' &&
+        results.redemptionsPage?.rows > 0 &&
+        results.redemptionsPage?.filters === 3 &&
         results.redemption?.row &&
         results.redemption?.button &&
         results.redemption?.used === false &&

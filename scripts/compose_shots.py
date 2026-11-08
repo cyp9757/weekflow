@@ -74,6 +74,7 @@ for name in [
     "appearance",
     "plans",
     "rewards",
+    "redemptions",
     "rewards-pool",
     "settings",
     "settings-ai",
