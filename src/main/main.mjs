@@ -697,6 +697,17 @@ async function runSelfTest() {
           edit: Boolean(taskElement?.querySelector('[data-action="edit-task"]')),
           remove: Boolean(taskElement?.querySelector('[data-action="delete-task"]')),
         };
+        task.detail = '教程：BV1VMTDzvEaV';
+        ctx.render();
+        await wait(180);
+        results.copy = {
+          chips: document.querySelectorAll('.copy-chip').length,
+          label: document.querySelector('.copy-label')?.textContent?.trim(),
+        };
+        A['copy-text'](ctx, { dataset: { copy: 'BV1VMTDzvEaV' } });
+        await wait(150);
+        results.copyToast = ctx.ui.toast?.message || '';
+
         const repeatProject = ctx.state.projects[0];
         A['new-task'](ctx, { dataset: { projectId: repeatProject.id } });
         ctx.ui.modal.draft = {
@@ -966,6 +977,8 @@ async function runSelfTest() {
         results.taskLayout?.pointsInMeta &&
         results.taskLayout?.edit &&
         results.taskLayout?.remove &&
+        results.copy?.chips > 0 &&
+        results.copyToast?.includes('BV1VMTDzvEaV') &&
         results.habit?.edit &&
         results.habit?.remove &&
         results.opacity?.setting === 0.85 &&

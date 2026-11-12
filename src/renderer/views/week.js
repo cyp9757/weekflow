@@ -26,6 +26,28 @@ function pointsBadge(points) {
   return `<span class="points-chip">+${points}</span>`;
 }
 
+function renderCopyRow(text) {
+  if (!text) return '';
+  const tokens = [];
+  for (const match of text.matchAll(/BV[0-9A-Za-z]{10}/g)) tokens.push(match[0]);
+  for (const match of text.matchAll(/https?:\/\/[^\s<>"']+/g)) {
+    tokens.push(match[0].replace(/[.,;)]+$/, ''));
+  }
+  const unique = [...new Set(tokens)].slice(0, 8);
+  if (!unique.length) return '';
+  return `
+    <div class="copy-row">
+      <span class="copy-label">${icon('copy', 10)} 复制</span>
+      ${unique
+        .map((token) => {
+          const label = token.startsWith('BV') ? token : '链接';
+          return `<button type="button" class="copy-chip" data-action="copy-text" data-copy="${escapeHtml(token)}" title="复制 ${escapeHtml(token)}">${escapeHtml(label)}</button>`;
+        })
+        .join('')}
+    </div>
+  `;
+}
+
 function panelGrip(section, label) {
   return `<button class="panel-grip" draggable="true" data-drag-section="${section}" title="拖动调整${label}的位置" aria-label="拖动调整${label}的位置">${icon('grip', 14)}</button>`;
 }
@@ -143,6 +165,7 @@ function renderBonusRow(ctx, bonus) {
           ${pointsBadge(done ? (bonus.awardedPoints ?? bonus.points) : bonus.points)}
         </div>
       </div>
+      ${renderCopyRow(bonus.detail)}
       <div class="row-actions">
         <button class="icon-btn small" data-action="edit-bonus" data-id="${bonus.id}" title="编辑待办" aria-label="编辑待办：${escapeHtml(bonus.title)}">${icon('edit', 12)}</button>
         <button class="icon-btn small row-delete" data-action="delete-bonus" data-id="${bonus.id}" title="删除待办" aria-label="删除待办：${escapeHtml(bonus.title)}">${icon('trash', 12)}</button>
@@ -213,6 +236,7 @@ export function renderTaskRow(ctx, task, { showProject = false } = {}) {
           ${pointsBadge(done ? (task.awardedPoints ?? task.points) : task.points)}
         </div>
       </div>
+      ${renderCopyRow(task.detail)}
       <div class="row-actions">
         <button class="icon-btn small" data-action="edit-task" data-id="${task.id}" title="编辑任务" aria-label="编辑任务：${escapeHtml(task.title)}">${icon('edit', 12)}</button>
         <button class="icon-btn small row-delete" data-action="delete-task" data-id="${task.id}" title="删除任务" aria-label="删除任务：${escapeHtml(task.title)}">${icon('trash', 12)}</button>

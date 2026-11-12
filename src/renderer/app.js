@@ -28,7 +28,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.10.2',
+  version: '0.10.3',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),

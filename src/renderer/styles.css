@@ -1189,6 +1189,49 @@ body.is-compact .boot {
   text-decoration-thickness: 0.5px;
 }
 
+.copy-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 5px 58px 2px 34px;
+}
+
+.task .copy-row {
+  margin-left: 38px;
+}
+
+.copy-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 2px;
+  color: var(--faint);
+  font-size: 7.5px;
+}
+
+.copy-chip {
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 5px;
+  border: 1px solid rgb(var(--overlay-rgb) / 9%);
+  background: rgb(var(--overlay-rgb) / 4%);
+  color: var(--text-soft);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.copy-chip:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
 .task-detail {
   margin-top: 3px;
   color: var(--muted);

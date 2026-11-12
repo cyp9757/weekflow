@@ -384,6 +384,23 @@ function syncAiConfig(ctx) {
 }
 
 export const ACTIONS = {
+  'copy-text': async (ctx, el) => {
+    const text = el.dataset.copy || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      area.remove();
+    }
+    ctx.showToast(text.startsWith('BV') ? `已复制 ${text}` : '已复制链接');
+  },
   'navigate': (ctx, el) => {
     ctx.navigate(el.dataset.view);
   },
