@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('weekflow', {
   setCompact: (compact) => ipcRenderer.invoke('app:set-compact', compact),
   openDataDir: () => ipcRenderer.invoke('app:open-data-dir'),
   resetPosition: () => ipcRenderer.invoke('app:reset-position'),
+  getLogin: () => ipcRenderer.invoke('app:get-login'),
   setLogin: (enabled) => ipcRenderer.invoke('app:set-login', enabled),
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
   show: () => ipcRenderer.invoke('app:show'),

@@ -1515,13 +1515,18 @@ export const ACTIONS = {
       return;
     }
     if (key === 'launchAtLogin') {
-      ctx.state.settings.launchAtLogin = el.checked;
-      ctx.api.setLogin(el.checked).then((result) => {
-        if (!result?.ok) {
+      const requested = Boolean(el.checked);
+      ctx.state.settings.launchAtLogin = requested;
+      ctx.api.setLogin(requested).then((result) => {
+        const actual = Boolean(result?.ok && result.enabled);
+        if (!result?.ok || (requested && !actual)) {
           ctx.state.settings.launchAtLogin = false;
           ctx.showToast(result?.error || '设置开机启动失败');
-          ctx.render();
+        } else {
+          ctx.state.settings.launchAtLogin = actual;
         }
+        ctx.render();
+        ctx.persist();
       });
       ctx.persist();
       return;

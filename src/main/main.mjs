@@ -36,7 +36,7 @@ const OUT_DIR = process.env.WEEKFLOW_OUT_DIR
 const DEBUG_LOG = path.join(OUT_DIR, 'main-debug.log');
 const HOTKEY_CANDIDATES = ['Alt+Shift+W', 'CommandOrControl+Shift+W', 'CommandOrControl+Alt+W'];
 const DEFAULT_BOUNDS = { width: 408, height: 716 };
-const COMPACT_BOUNDS = { width: 380, height: 92 };
+const COMPACT_BOUNDS = { width: 380, height: 168 };
 const SCREENSHOT_VIEWS = ['plans', 'rewards', 'redemptions', 'settings'];
 
 if (IS_SHOT || IS_SELFTEST) {
@@ -504,12 +504,34 @@ function registerIpc() {
     resetPosition();
     return true;
   });
+  ipcMain.handle('app:get-login', () => {
+    try {
+      return { ok: true, enabled: app.getLoginItemSettings().openAtLogin };
+    } catch (error) {
+      return { ok: false, error: error.message || String(error), enabled: false };
+    }
+  });
   ipcMain.handle('app:set-login', (_event, enabled) => {
     try {
+      // In portable mode, launch the launcher rather than the runtime exe.
+      // The launcher sets WEEKFLOW_DATA_DIR, so login startup reads the same data/.
+      const dataDir = resolveDataDir(app);
+      const portableRoot = path.dirname(dataDir);
+      const portableLauncher = path.join(portableRoot, 'START_WEEKFLOW.cmd');
+      const usePortableLauncher =
+        app.isPackaged && process.platform === 'win32' && fs.existsSync(portableLauncher);
+      const command = usePortableLauncher
+        ? process.env.ComSpec || path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'cmd.exe')
+        : process.execPath;
+      const args = usePortableLauncher
+        ? ['/c', `"${portableLauncher}"`]
+        : app.isPackaged
+          ? []
+          : [ROOT];
       app.setLoginItemSettings({
         openAtLogin: Boolean(enabled),
-        path: process.execPath,
-        args: app.isPackaged ? [] : [ROOT],
+        path: command,
+        args,
       });
       return { ok: true, enabled: app.getLoginItemSettings().openAtLogin };
     } catch (error) {
@@ -937,6 +959,11 @@ async function runSelfTest() {
         };
         A['close-modal'](ctx);
 
+        ctx.navigate('settings');
+        await wait(220);
+        results.launchSetting = Boolean(document.querySelector('[data-setting="launchAtLogin"]'));
+        results.login = await window.weekflow.getLogin();
+
         const autoFade = ctx.state.settings.autoFade;
         A['setting-change'](ctx, { dataset: { setting: 'autoFade' }, checked: !autoFade });
         await wait(220);
@@ -948,6 +975,9 @@ async function runSelfTest() {
         results.compact = {
           ui: ctx.ui.compact,
           body: document.body.classList.contains('is-compact'),
+          rows: document.querySelectorAll('.compact-row').length,
+          daily: Boolean(document.querySelector('.compact-row[data-kind="daily"]')),
+          week: Boolean(document.querySelector('.compact-row[data-kind="week"]')),
         };
         A['expand-compact'](ctx);
         await wait(700);
@@ -968,6 +998,8 @@ async function runSelfTest() {
     results.pass = Boolean(
       results.autoFade?.setting === false &&
         results.autoFade?.body === false &&
+        results.launchSetting &&
+        results.login?.ok &&
         results.nav?.open &&
         results.nav?.tabbar &&
         results.nav?.handle &&
@@ -1045,6 +1077,10 @@ async function runSelfTest() {
         results.setting?.changed &&
         results.compact?.ui &&
         results.compact?.body &&
+        results.compact?.rows >= 3 &&
+        results.compact?.daily &&
+        results.compact?.week &&
+        results.compactBounds?.height >= 160 &&
         !results.expanded?.ui,
     );
   } catch (error) {

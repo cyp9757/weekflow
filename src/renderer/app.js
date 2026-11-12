@@ -1,7 +1,9 @@
 import {
+  activeHabits,
   compareWeeks,
   computeBalance,
   endOfWeekISO,
+  habitCompletion,
   isoWeekInfo,
   overdueTasks,
   startOfWeekISO,
@@ -28,7 +30,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.10.3',
+  version: '0.10.4',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),
@@ -188,22 +190,53 @@ function renderCurrentView() {
   return renderWeek(ctx);
 }
 
+function compactRow(kind, label, title, points, { done = false, empty = false } = {}) {
+  return `
+    <div class="compact-row ${done ? 'done' : ''} ${empty ? 'empty' : ''}" data-kind="${kind}">
+      <span class="compact-tag ${kind}">${label}</span>
+      <span class="compact-row-title">${escapeHtml(clampText(title, 38))}</span>
+      <span class="compact-row-points">${points}</span>
+    </div>
+  `;
+}
+
 function renderCompact() {
+  const today = todayISO();
+  const habits = activeHabits(ctx.state);
   const tasks = tasksForWeek(ctx.state, ctx.currentWeek).filter((task) => task.status !== 'done');
   const overdue = overdueTasks(ctx.state, ctx.currentWeek);
-  const next = tasks[0] || overdue[0] || null;
+  const queue = [...tasks];
+  for (const task of overdue) {
+    if (!queue.some((entry) => entry.id === task.id)) queue.push(task);
+  }
+
+  const firstHabit = habits.find((habit) => !habitCompletion(ctx.state, habit.id, today)) || habits[0];
+  const habitDone = firstHabit ? Boolean(habitCompletion(ctx.state, firstHabit.id, today)) : false;
+  const firstWeek = queue[0];
+  const secondWeek = queue[1];
   const stats = weekStats(ctx.state, ctx.currentWeek);
   const progress = Math.round(stats.progress * 100);
+
   return `
     <div class="compact-bar">
-      <div class="compact-brand" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-      <div class="compact-copy">
-        <div class="compact-week">${dotDate(ctx.currentWeek)} — ${dotDate(endOfWeekISO(ctx.currentWeek))} · ${stats.done}/${stats.total}</div>
-        <div class="compact-task">${next ? escapeHtml(clampText(next.title, 46)) : '本周已清空'}</div>
-        <div class="compact-track"><span style="width:${progress}%"></span></div>
+      <div class="compact-head">
+        <div class="compact-brand" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+        <div class="compact-copy">
+          <div class="compact-week">${dotDate(ctx.currentWeek)} — ${dotDate(endOfWeekISO(ctx.currentWeek))} · ${stats.done}/${stats.total}</div>
+        </div>
+        <span class="compact-points">${ctx.balance.toLocaleString('zh-CN')} 分</span>
+        <button class="compact-open" data-action="expand-compact" aria-label="展开周流">${icon('expand', 15)}</button>
       </div>
-      <span class="compact-points">${ctx.balance.toLocaleString('zh-CN')} 分</span>
-      <button class="compact-open" data-action="expand-compact" aria-label="展开周流">${icon('expand', 15)}</button>
+      <div class="compact-list">
+        ${
+          firstHabit
+            ? compactRow('daily', '每日', firstHabit.title, habitDone ? '已完成' : `+${firstHabit.points}`, { done: habitDone })
+            : compactRow('daily', '每日', '还没有每日任务', '—', { empty: true })
+        }
+        ${compactRow('week', '每周', firstWeek ? firstWeek.title : '本周已清空', firstWeek ? `+${firstWeek.points}` : '—', { empty: !firstWeek })}
+        ${compactRow('week', '每周', secondWeek ? secondWeek.title : '本周已清空', secondWeek ? `+${secondWeek.points}` : '—', { empty: !secondWeek })}
+      </div>
+      <div class="compact-track"><span style="width:${progress}%"></span></div>
     </div>
   `;
 }
@@ -713,6 +746,15 @@ async function boot() {
     setupEvents();
     applyTheme();
     render();
+    api.getLogin?.().then((result) => {
+      if (!result?.ok || !ctx.state) return;
+      const actual = Boolean(result.enabled);
+      if (ctx.state.settings.launchAtLogin !== actual) {
+        ctx.state.settings.launchAtLogin = actual;
+        ctx.render();
+        ctx.persist();
+      }
+    });
     let renderedDay = todayISO();
     setInterval(() => {
       if (!ctx.state) return;

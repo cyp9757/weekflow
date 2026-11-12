@@ -101,6 +101,19 @@ export function renderSettings(ctx) {
       </div>
 
       <div class="settings-section">
+        <div class="settings-label">启动</div>
+        <div class="settings-card">
+          ${switchRow({
+            setting: 'launchAtLogin',
+            name: '开机自动启动',
+            desc: '登录 Windows 后自动显示周流；开关状态会与系统启动项同步。',
+            checked: settings.launchAtLogin,
+            iconName: 'play',
+          })}
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-label">桌面</div>
         <div class="settings-card">
           ${switchRow({
@@ -185,7 +198,7 @@ export function renderSettings(ctx) {
           <div class="setting-row">
             <span class="setting-copy">
               <span class="setting-name">${icon('expand', 13)} 桌面小条</span>
-              <span class="setting-desc">收成一条，只显示进度和下一件事。</span>
+              <span class="setting-desc">收成小条，显示每日第一个和每周前两个任务。</span>
             </span>
             <span class="setting-control">
               <button class="btn btn-secondary btn-sm" data-action="toggle-compact">${ctx.ui.compact ? '展开' : '收起'}</button>
@@ -197,13 +210,6 @@ export function renderSettings(ctx) {
             desc: `开启后点击会落到桌面。按 ${ctx.hotkey || '托盘菜单'} 或使用托盘恢复。`,
             checked: ctx.ui.clickThrough,
             iconName: 'mouse',
-          })}
-          ${switchRow({
-            setting: 'launchAtLogin',
-            name: '开机自动启动',
-            desc: '登录 Windows 后自动显示周流。',
-            checked: settings.launchAtLogin,
-            iconName: 'play',
           })}
         </div>
       </div>
