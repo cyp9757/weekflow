@@ -50,6 +50,18 @@ function renderPool(ctx, pool) {
   const ordered = [...odds.prizes].sort((a, b) => b.probability - a.probability);
   const remainingFor = (prize) => Math.max(0, Number(pool.remainingCounts?.[prize.id]) || 0);
   const stockPct = stock.total ? Math.round((stock.remaining / stock.total) * 100) : 0;
+  const jackpotPoints = Math.max(...pool.prizes.map((prize) => prize.points), 0);
+  const remainingTiers = [...pool.prizes].sort(
+    (a, b) => b.points - a.points || b.weight - a.weight || a.label.localeCompare(b.label),
+  );
+  const tierColor = (prize) =>
+    prize.points <= 0
+      ? 'var(--faint)'
+      : prize.points >= jackpotPoints
+        ? 'var(--accent)'
+        : prize.points >= jackpotPoints * 0.25
+          ? '#9AA9D6'
+          : '#9DB8A0';
   return `
     <article class="pool-card" data-pool-id="${pool.id}">
       <div class="pool-top">
@@ -75,6 +87,24 @@ function renderPool(ctx, pool) {
       <div class="pool-stock">
         <div class="pool-stock-label"><span>剩余奖品</span><strong>${stock.remaining} / ${stock.total}</strong></div>
         <div class="pool-stock-track"><span style="width:${stockPct}%"></span></div>
+      </div>
+      <div class="pool-tiers">
+        <div class="pool-tiers-head"><span>剩余档位</span><span>${stock.remaining} 个可抽</span></div>
+        <div class="pool-tier-list">
+          ${remainingTiers
+            .map((prize) => {
+              const remaining = remainingFor(prize);
+              return `
+                <div class="pool-tier-row ${remaining === 0 ? 'empty' : ''}" style="--tier-color:${tierColor(prize)}">
+                  <span class="pool-tier-dot"></span>
+                  <span class="pool-tier-label">${escapeHtml(prize.label)}</span>
+                  <span class="pool-tier-points">${prize.points ? `+${prize.points}` : '0 分'}</span>
+                  <strong class="pool-tier-count">${remaining}</strong>
+                </div>
+              `;
+            })
+            .join('')}
+        </div>
       </div>
       ${
         expanded

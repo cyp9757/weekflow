@@ -923,6 +923,8 @@ async function runSelfTest() {
         results.poolCards = {
           edit: Boolean(document.querySelector('[data-action="edit-pool"]')),
           remove: Boolean(document.querySelector('[data-action="delete-pool"]')),
+          tiers: document.querySelectorAll('.pool-tier-row').length,
+          stock: Boolean(document.querySelector('.pool-stock')),
         };
         A['redeem-reward'](ctx, { dataset: { id: reward.id } });
         await A['confirm-modal'](ctx);
@@ -1104,6 +1106,8 @@ async function runSelfTest() {
         results.rewardCards?.remove &&
         results.poolCards?.edit &&
         results.poolCards?.remove &&
+        results.poolCards?.tiers > 0 &&
+        results.poolCards?.stock &&
         results.poolEdit?.title === '编辑奖池' &&
         results.poolEdit?.prizeRows === results.poolEdit?.expectedRows &&
         results.poolEdit?.weightSteps?.includes('any') &&

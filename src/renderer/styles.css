@@ -3166,6 +3166,79 @@ body.is-compact .boot {
   transition: width 280ms var(--ease-out);
 }
 
+.pool-tiers {
+  margin-top: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--overlay-rgb) / 6%);
+  background: rgb(var(--overlay-rgb) / 2%);
+}
+
+.pool-tiers-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+  color: var(--faint);
+  font-size: 7.5px;
+  letter-spacing: 0.04em;
+}
+
+.pool-tier-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px 10px;
+}
+
+.pool-tier-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 19px;
+  color: var(--text-soft);
+  font-size: 8px;
+}
+
+.pool-tier-row.empty {
+  color: var(--faint);
+  opacity: 0.55;
+}
+
+.pool-tier-dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tier-color, var(--accent));
+}
+
+.pool-tier-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-tier-points {
+  flex: none;
+  color: var(--faint);
+  font-size: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pool-tier-count {
+  width: 18px;
+  flex: none;
+  color: var(--tier-color, var(--accent));
+  font-size: 9px;
+  font-weight: 650;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .pool-draw-row {
   position: relative;
   display: flex;
