@@ -1,6 +1,6 @@
 # 周流 WeekFlow 使用说明
 
-版本 0.10.4 · Windows x64 便携版
+版本 0.11.0 · Windows x64 便携版
 
 周流是一个挂在桌面边缘的透明每周待办。它不要求每天打卡，只处理三件事：这一周做什么、没做完怎么往后放、做完换什么奖励。
 
@@ -12,7 +12,7 @@
 
 ### 1.1 启动
 
-1. 将 `WeekFlow-0.10.4-win-x64-portable.zip` 解压到一个可写文件夹，例如 `D:\Apps\WeekFlow`。
+1. 将 `WeekFlow-0.11.0-win-x64-portable.zip` 解压到一个可写文件夹，例如 `D:\Apps\WeekFlow`。
 2. **双击 `START_WEEKFLOW.cmd`**，不要直接双击 `WeekFlowApp.exe`。
 3. 首次运行启动器会把运行文件复制到 `%LOCALAPPDATA%\WeekFlow\runtime`，通常几秒钟；SmartScreen 如弹出，点“更多信息 → 仍要运行”。
 4. 不需要安装 Node.js、Python 或数据库；程序不会写注册表（开机启动除外）。
@@ -49,7 +49,7 @@
 
 ![米白主题](images/week-paper.jpg)
 
-小条占 380×168，显示本周日期、完成进度、每日第一个任务、每周前两个任务和积分：
+小条占 380×400，完整显示每日任务和按项目分组的每周任务，带项目色块、步骤进度和每周标记；内容多时在小条内滚动：
 
 ![桌面小条](images/compact.jpg)
 

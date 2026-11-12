@@ -260,19 +260,27 @@ function groupTasks(ctx, tasks) {
       project ? task.projectId === project.id : !task.projectId,
     );
     const weekDone = weekTasks.filter((task) => task.status === 'done').length;
+    const groupProgress = weekTasks.length ? Math.round((weekDone / weekTasks.length) * 100) : 0;
     return `
       <section class="task-group" style="--project-color:${project?.color || 'var(--accent)'}">
         <div class="group-head">
-          <span class="group-dot"></span>
-          <span class="group-title">${escapeHtml(project?.title || '单件小事')}</span>
-          <span class="group-count">${weekDone}/${weekTasks.length}</span>
-          ${project?.shiftCount ? `<span class="shift-note">顺延 ${project.shiftCount} 次</span>` : ''}
+          <span class="group-badge">${escapeHtml((project?.title || '单').slice(0, 1))}</span>
+          <div class="group-title-wrap">
+            <span class="group-title">${escapeHtml(project?.title || '单件小事')}</span>
+            <span class="group-meta">${weekDone}/${weekTasks.length} 步 · ${groupProgress}%${project?.shiftCount ? ` · 顺延 ${project.shiftCount} 次` : ''}</span>
+          </div>
           <span class="group-spacer"></span>
           ${
             project
               ? `<button class="group-more" data-action="project-actions" data-id="${project.id}" aria-label="项目操作">${icon('more', 15)}</button>`
               : ''
           }
+        </div>
+        <div class="group-progress" aria-label="项目进度 ${groupProgress}%">
+          ${weekTasks
+            .slice(0, 8)
+            .map((task) => `<span class="${task.status === 'done' ? 'filled' : ''}"></span>`)
+            .join('')}
         </div>
         <div class="task-list">${items.map((task) => renderTaskRow(ctx, task)).join('')}</div>
       </section>

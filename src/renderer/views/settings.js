@@ -198,7 +198,7 @@ export function renderSettings(ctx) {
           <div class="setting-row">
             <span class="setting-copy">
               <span class="setting-name">${icon('expand', 13)} 桌面小条</span>
-              <span class="setting-desc">收成小条，显示每日第一个和每周前两个任务。</span>
+              <span class="setting-desc">收成小周视图：每日全部、每周按项目分组。</span>
             </span>
             <span class="setting-control">
               <button class="btn btn-secondary btn-sm" data-action="toggle-compact">${ctx.ui.compact ? '展开' : '收起'}</button>

@@ -30,7 +30,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.10.4',
+  version: '0.11.0',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),
@@ -190,12 +190,38 @@ function renderCurrentView() {
   return renderWeek(ctx);
 }
 
-function compactRow(kind, label, title, points, { done = false, empty = false } = {}) {
+function compactRow(kind, label, title, points, { done = false, empty = false, repeat = false, hideTag = false } = {}) {
   return `
-    <div class="compact-row ${done ? 'done' : ''} ${empty ? 'empty' : ''}" data-kind="${kind}">
-      <span class="compact-tag ${kind}">${label}</span>
-      <span class="compact-row-title">${escapeHtml(clampText(title, 38))}</span>
+    <div class="compact-row ${done ? 'done' : ''} ${empty ? 'empty' : ''} ${hideTag ? 'no-tag' : ''}" data-kind="${kind}">
+      ${!hideTag && label ? `<span class="compact-tag ${kind}">${label}</span>` : ''}
+      <span class="compact-row-title">${escapeHtml(clampText(title, 42))}</span>
+      ${repeat ? '<span class="compact-repeat">每周</span>' : ''}
       <span class="compact-row-points">${points}</span>
+    </div>
+  `;
+}
+
+function compactProject(project, tasks) {
+  const color = project?.color || 'var(--accent)';
+  const done = tasks.filter((task) => task.status === 'done').length;
+  const progress = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+  return `
+    <div class="compact-project" style="--project-color:${color}">
+      <div class="compact-project-head">
+        <span class="compact-project-dot"></span>
+        <span class="compact-project-title">${escapeHtml(project?.title || '单件小事')}</span>
+        <span class="compact-project-count">${done}/${tasks.length}</span>
+      </div>
+      <div class="compact-project-track"><span style="width:${progress}%"></span></div>
+      ${tasks
+        .map((task) =>
+          compactRow('week', '', task.title, task.status === 'done' ? '已完成' : `+${task.points}`, {
+            done: task.status === 'done',
+            repeat: Boolean(task.seriesId || task.recurring),
+            hideTag: true,
+          }),
+        )
+        .join('')}
     </div>
   `;
 }
@@ -203,19 +229,15 @@ function compactRow(kind, label, title, points, { done = false, empty = false } 
 function renderCompact() {
   const today = todayISO();
   const habits = activeHabits(ctx.state);
-  const tasks = tasksForWeek(ctx.state, ctx.currentWeek).filter((task) => task.status !== 'done');
-  const overdue = overdueTasks(ctx.state, ctx.currentWeek);
-  const queue = [...tasks];
-  for (const task of overdue) {
-    if (!queue.some((entry) => entry.id === task.id)) queue.push(task);
-  }
-
-  const firstHabit = habits.find((habit) => !habitCompletion(ctx.state, habit.id, today)) || habits[0];
-  const habitDone = firstHabit ? Boolean(habitCompletion(ctx.state, firstHabit.id, today)) : false;
-  const firstWeek = queue[0];
-  const secondWeek = queue[1];
+  const weekTasks = tasksForWeek(ctx.state, ctx.currentWeek);
   const stats = weekStats(ctx.state, ctx.currentWeek);
   const progress = Math.round(stats.progress * 100);
+  const groups = new Map();
+  for (const task of weekTasks) {
+    const key = task.projectId || '__solo';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(task);
+  }
 
   return `
     <div class="compact-bar">
@@ -227,14 +249,33 @@ function renderCompact() {
         <span class="compact-points">${ctx.balance.toLocaleString('zh-CN')} 分</span>
         <button class="compact-open" data-action="expand-compact" aria-label="展开周流">${icon('expand', 15)}</button>
       </div>
-      <div class="compact-list">
-        ${
-          firstHabit
-            ? compactRow('daily', '每日', firstHabit.title, habitDone ? '已完成' : `+${firstHabit.points}`, { done: habitDone })
-            : compactRow('daily', '每日', '还没有每日任务', '—', { empty: true })
-        }
-        ${compactRow('week', '每周', firstWeek ? firstWeek.title : '本周已清空', firstWeek ? `+${firstWeek.points}` : '—', { empty: !firstWeek })}
-        ${compactRow('week', '每周', secondWeek ? secondWeek.title : '本周已清空', secondWeek ? `+${secondWeek.points}` : '—', { empty: !secondWeek })}
+      <div class="compact-body">
+        <div class="compact-section">
+          <div class="compact-section-head"><span>每日</span><span>${habits.filter((habit) => habitCompletion(ctx.state, habit.id, today)).length}/${habits.length}</span></div>
+          ${
+            habits.length
+              ? `<div class="compact-daily-grid">${habits
+                  .map((habit) => {
+                    const done = Boolean(habitCompletion(ctx.state, habit.id, today));
+                    return compactRow('daily', '', habit.title, done ? '已完成' : `+${habit.points}`, { done, hideTag: true });
+                  })
+                  .join('')}</div>`
+              : compactRow('daily', '每日', '还没有每日任务', '—', { empty: true })
+          }
+        </div>
+        <div class="compact-section">
+          <div class="compact-section-head"><span>每周</span><span>${stats.done}/${stats.total}</span></div>
+          ${
+            groups.size
+              ? [...groups.entries()]
+                  .map(([projectId, tasks]) => {
+                    const project = projectId === '__solo' ? null : ctx.state.projects.find((item) => item.id === projectId);
+                    return compactProject(project, tasks);
+                  })
+                  .join('')
+              : compactRow('week', '每周', '本周已清空', '—', { empty: true })
+          }
+        </div>
       </div>
       <div class="compact-track"><span style="width:${progress}%"></span></div>
     </div>

@@ -36,7 +36,7 @@ const OUT_DIR = process.env.WEEKFLOW_OUT_DIR
 const DEBUG_LOG = path.join(OUT_DIR, 'main-debug.log');
 const HOTKEY_CANDIDATES = ['Alt+Shift+W', 'CommandOrControl+Shift+W', 'CommandOrControl+Alt+W'];
 const DEFAULT_BOUNDS = { width: 408, height: 716 };
-const COMPACT_BOUNDS = { width: 380, height: 168 };
+const COMPACT_BOUNDS = { width: 380, height: 400 };
 const SCREENSHOT_VIEWS = ['plans', 'rewards', 'redemptions', 'settings'];
 
 if (IS_SHOT || IS_SELFTEST) {
