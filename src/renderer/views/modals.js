@@ -53,6 +53,7 @@ function projectOptions(state, selected) {
       (project) =>
         `<option value="${project.id}" ${selected === project.id ? 'selected' : ''}>${escapeHtml(project.title)}</option>`,
     ),
+    `<option value="__new__" ${selected === '__new__' ? 'selected' : ''}>＋ 新建项目…</option>`,
   ].join('');
 }
 
@@ -152,12 +153,25 @@ export function renderTaskEditor(ctx) {
         <div class="field-row">
           ${field({
             label: '归属项目',
-            html: `<select class="select" data-task-field="projectId">${projectOptions(ctx.state, draft.projectId)}</select>`,
+            html: `<div class="project-field-control"><select class="select" data-task-field="projectId">${projectOptions(ctx.state, draft.projectId)}</select><button type="button" class="text-button task-new-project-trigger" data-action="task-new-project">＋ 新建</button></div>`,
           })}
           ${field({
             label: '安排到哪一周',
             html: `<select class="select" data-task-field="weekStart">${weekOptions(ctx, draft.weekStart)}</select>`,
           })}
+        </div>
+        <div class="task-new-project" data-new-project-box ${draft.projectId === '__new__' ? '' : 'hidden'}>
+          <div class="field-row">
+            ${field({
+              label: '新项目名称',
+              html: `<input class="input" data-new-project-field="title" value="${escapeHtml(draft.newProject?.title || '')}" placeholder="例如：三个月学会 C++" maxlength="120" />`,
+            })}
+            ${field({
+              label: '项目周数',
+              html: `<input class="input" type="number" min="1" max="52" step="1" data-new-project-field="weeks" value="${draft.newProject?.weeks || 12}" />`,
+            })}
+          </div>
+          <div class="hint">会先创建项目，再把这条任务归进去；项目之后可以在蓝图页继续加任务。</div>
         </div>
         <div class="field-row">
           ${field({

@@ -4083,6 +4083,42 @@ body.is-compact .overlay {
   gap: 9px;
 }
 
+.project-field-control {
+  display: block;
+}
+
+.project-field-control .select {
+  width: 100%;
+}
+
+.task-new-project-trigger {
+  display: inline-block;
+  margin-top: 3px;
+  white-space: nowrap;
+  font-size: 8px;
+}
+
+.task-new-project {
+  margin-top: 10px;
+  padding: 9px 9px 8px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.task-new-project[hidden] {
+  display: none;
+}
+
+.task-new-project .field:first-child {
+  margin-top: 0;
+}
+
+.task-new-project .hint {
+  margin-top: 6px;
+  font-size: 8px;
+}
+
 .check-line {
   display: flex;
   align-items: flex-start;

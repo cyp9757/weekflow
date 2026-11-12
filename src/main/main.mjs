@@ -755,6 +755,44 @@ async function runSelfTest() {
         }
         results.recurringUndo = ctx.state.tasks.filter((item) => item.title === '自测每周任务').length;
 
+        A['new-task'](ctx);
+        A['task-new-project'](ctx);
+        await wait(120);
+        results.newProjectControl = {
+          value: document.querySelector('[data-task-field="projectId"]')?.value,
+          visible: !document.querySelector('[data-new-project-box]')?.hidden,
+        };
+        ctx.ui.modal.draft = {
+          title: '自测项目任务',
+          detail: '',
+          projectId: '__new__',
+          weekStart: ctx.currentWeek,
+          points: 10,
+          estimateMin: 10,
+          repeatWeekly: false,
+          newProject: { title: '自测内联项目', weeks: 4 },
+        };
+        const inlineOption = Boolean(
+          document.querySelector('[data-task-field="projectId"] option[value="__new__"]'),
+        );
+        A['submit:task-form'](ctx);
+        await wait(260);
+        const inlineProject = ctx.state.projects.find((item) => item.title === '自测内联项目');
+        const inlineTask = ctx.state.tasks.find((item) => item.title === '自测项目任务');
+        results.inlineProject = {
+          project: Boolean(inlineProject),
+          taskLinked: Boolean(inlineProject && inlineTask?.projectId === inlineProject.id),
+          option: inlineOption,
+        };
+        if (ctx.ui.toast?.action) {
+          A['toast-action'](ctx);
+          await wait(240);
+        }
+        results.inlineProjectUndo = {
+          project: ctx.state.projects.some((item) => item.title === '自测内联项目'),
+          task: ctx.state.tasks.some((item) => item.title === '自测项目任务'),
+        };
+
         const now = new Date();
         const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
         ctx.state.settings.holidayDates = [today];
@@ -1042,6 +1080,13 @@ async function runSelfTest() {
         results.recurring?.count > 1 &&
         results.recurring?.badge &&
         results.recurringUndo === 0 &&
+        results.newProjectControl?.value === '__new__' &&
+        results.newProjectControl?.visible &&
+        results.inlineProject?.project &&
+        results.inlineProject?.taskLinked &&
+        results.inlineProject?.option &&
+        !results.inlineProjectUndo?.project &&
+        !results.inlineProjectUndo?.task &&
         results.undoComplete?.ok &&
         results.shift?.moved > 0 &&
         results.undoShift?.restored &&

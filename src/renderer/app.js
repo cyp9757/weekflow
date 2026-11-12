@@ -30,7 +30,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.11.0',
+  version: '0.11.1',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),
@@ -554,6 +554,13 @@ function setupEvents() {
           target.type === 'checkbox' ? target.checked : target.value;
       }
     }
+    if (target.matches('[data-new-project-field]')) {
+      const draft = ctx.ui.modal?.draft;
+      if (draft) {
+        draft.newProject = draft.newProject || {};
+        draft.newProject[target.dataset.newProjectField] = target.value;
+      }
+    }
     if (target.matches('[data-plan-field]')) {
       if (ctx.ui.modal?.draft) ctx.ui.modal.draft[target.dataset.planField] = target.value;
     }
@@ -587,6 +594,13 @@ function setupEvents() {
 
   document.addEventListener('change', (event) => {
     const target = event.target;
+    if (target.matches('[data-task-field="projectId"]')) {
+      const box = target.closest('form')?.querySelector('[data-new-project-box]');
+      if (box) {
+        box.hidden = target.value !== '__new__';
+        if (!box.hidden) box.querySelector('[data-new-project-field="title"]')?.focus();
+      }
+    }
     if (target.matches('[data-setting]')) {
       ACTIONS['setting-change'](ctx, target, event);
     }

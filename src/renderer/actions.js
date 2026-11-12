@@ -109,6 +109,7 @@ function openTaskEditor(ctx, { taskId = null, projectId = null } = {}) {
           points: task.points,
           estimateMin: task.estimateMin,
           repeatWeekly: false,
+          newProject: { title: '', weeks: 12 },
         }
       : {
           title: '',
@@ -116,6 +117,7 @@ function openTaskEditor(ctx, { taskId = null, projectId = null } = {}) {
           projectId: projectId || '',
           weekStart: ctx.ui.selectedWeek || ctx.currentWeek,
           points: 15,
+          newProject: { title: '', weeks: 12 },
           estimateMin: 60,
           repeatWeekly: false,
         },
@@ -795,6 +797,13 @@ export const ACTIONS = {
   'new-task': (ctx, el) => {
     openTaskEditor(ctx, { projectId: el?.dataset?.projectId || null });
   },
+  'task-new-project': (ctx) => {
+    const draft = ctx.ui.modal?.draft;
+    if (!draft) return;
+    draft.projectId = '__new__';
+    draft.newProject = draft.newProject || { title: '', weeks: 12 };
+    ctx.renderOverlayOnly({ focus: true });
+  },
   'edit-task': (ctx, el) => {
     openTaskEditor(ctx, { taskId: el.dataset.id });
   },
@@ -872,12 +881,26 @@ export const ACTIONS = {
       return;
     }
     const estimateMin = Math.max(0, Math.round(Number(draft.estimateMin) || 0));
+    if (draft.projectId === '__new__' && !String(draft.newProject?.title || '').trim()) {
+      setModalError(ctx, '给新项目起个名字');
+      return;
+    }
+    let createdProject = null;
     try {
+      let projectId = draft.projectId === '__new__' ? null : draft.projectId || null;
+      if (draft.projectId === '__new__') {
+        createdProject = createProject(ctx.state, {
+          title: draft.newProject.title,
+          startDate: draft.weekStart,
+          weeks: Number(draft.newProject.weeks) || 12,
+        });
+        projectId = createdProject.id;
+      }
       if (ctx.ui.modal.taskId) {
         const task = updateTask(ctx.state, ctx.ui.modal.taskId, {
           title,
           detail: draft.detail,
-          projectId: draft.projectId || null,
+          projectId,
           weekStart: draft.weekStart,
           points,
           estimateMin,
@@ -886,9 +909,9 @@ export const ACTIONS = {
         ctx.ui.selectedWeek = task.weekStart;
         ctx.render();
         ctx.persist();
-        ctx.showToast('任务已更新');
+        ctx.showToast(createdProject ? `已创建「${createdProject.title}」并更新任务` : '任务已更新');
       } else {
-        const project = draft.projectId ? getProject(ctx.state, draft.projectId) : null;
+        const project = projectId ? getProject(ctx.state, projectId) : null;
         let repeatCount = 1;
         if (draft.repeatWeekly) {
           if (project) {
@@ -908,7 +931,7 @@ export const ACTIONS = {
           const task = createTask(ctx.state, {
             title,
             detail: draft.detail,
-            projectId: draft.projectId || null,
+            projectId,
             weekStart: addWeeksISO(draft.weekStart, index),
             points,
             estimateMin,
@@ -924,15 +947,17 @@ export const ACTIONS = {
         ctx.ui.view = 'week';
         ctx.render();
         ctx.persist();
+        const taskMessage = seriesId
+          ? `已加入 ${created.length} 周（每周重复）`
+          : '已放进这一周';
         ctx.showToast(
-          seriesId
-            ? `已加入 ${created.length} 周（每周重复）`
-            : '已放进这一周',
+          createdProject ? `已创建「${createdProject.title}」，${taskMessage}` : taskMessage,
           {
             action: {
               label: '撤销',
               onClick: () => {
-                for (const task of created) deleteTask(ctx.state, task.id);
+                if (createdProject) deleteProject(ctx.state, createdProject.id);
+                else for (const task of created) deleteTask(ctx.state, task.id);
                 ctx.render();
                 ctx.persist();
                 ctx.showToast('已撤销');
