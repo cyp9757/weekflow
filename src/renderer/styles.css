@@ -3131,6 +3131,41 @@ body.is-compact .boot {
   background: var(--faint);
 }
 
+.pool-stock {
+  margin-top: 8px;
+}
+
+.pool-stock-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--faint);
+  font-size: 8.5px;
+}
+
+.pool-stock-label strong {
+  color: var(--text-soft);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pool-stock-track {
+  height: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(var(--overlay-rgb) / 8%);
+}
+
+.pool-stock-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #9aa9d6));
+  transition: width 280ms var(--ease-out);
+}
+
 .pool-draw-row {
   position: relative;
   display: flex;
@@ -3239,6 +3274,43 @@ body.is-compact .boot {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.ledger-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgb(var(--overlay-rgb) / 5%);
+  color: var(--faint);
+  font-size: 8px;
+}
+
+.ledger-pager span {
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pager-btn {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgb(var(--overlay-rgb) / 3%);
+  color: var(--text-soft);
+  font-size: 8px;
+}
+
+.pager-btn:disabled {
+  opacity: 0.35;
+}
+
+.pager-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .history-time {
@@ -4636,6 +4708,12 @@ body.is-compact .overlay {
   font-size: 9px;
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
+}
+
+.draw-stock {
+  margin-top: 4px;
+  color: var(--accent);
+  font-size: 8px;
 }
 
 .draw-actions {

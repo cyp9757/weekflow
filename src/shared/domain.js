@@ -444,12 +444,31 @@ export function normalizeState(raw = {}, now = new Date()) {
         })
         .filter(Boolean);
       if (!title || prizes.length === 0) return null;
+      const size = Math.max(
+        prizes.length,
+        Math.round(clamp(pool.size ?? 100, prizes.length, 5000)),
+      );
+      const prizeCounts = allocatePrizeCounts(prizes, size);
+      const savedRemaining =
+        pool.remainingCounts && typeof pool.remainingCounts === 'object'
+          ? pool.remainingCounts
+          : null;
+      const remainingCounts = {};
+      for (const prize of prizes) {
+        remainingCounts[prize.id] = savedRemaining
+          ? Math.round(clamp(savedRemaining[prize.id] ?? prizeCounts[prize.id], 0, prizeCounts[prize.id]))
+          : prizeCounts[prize.id];
+      }
       return {
         id: idForPool(pool.id, 'pool'),
         title,
         subtitle: normalizeString(pool.subtitle, '', 200),
         cost: Math.round(clamp(pool.cost ?? 50, 1, 100_000)),
         icon: normalizeString(pool.icon, '🌌', 8) || '🌌',
+        size,
+        prizeCounts,
+        remainingCounts,
+        resetAt: normalizeString(pool.resetAt, '', 40) || null,
         prizes,
       };
     })
@@ -500,6 +519,8 @@ export function normalizeState(raw = {}, now = new Date()) {
         amount,
         at: normalizeString(entry.at, nowISO(now), 40),
         refId: normalizeString(entry.refId, '', 120),
+        poolId: normalizeString(entry.poolId, '', 120) || null,
+        hiddenAt: normalizeString(entry.hiddenAt, '', 40) || null,
         note: normalizeString(entry.note, '', 300),
       };
     })
@@ -1286,6 +1307,63 @@ export function unmarkRedemptionUsed(state, redemptionId) {
   return { ok: true, redemption };
 }
 
+function clampPoolSize(value, prizeCount) {
+  return Math.max(prizeCount, Math.round(clamp(value ?? 100, prizeCount, 5000)));
+}
+
+export function allocatePrizeCounts(prizes, size) {
+  const list = Array.isArray(prizes) ? prizes : [];
+  if (!list.length) return {};
+  const total = Math.max(list.length, Math.round(Number(size) || 100));
+  const counts = {};
+  const base = 1;
+  let remaining = total - list.length * base;
+  const totalWeight = list.reduce((sum, prize) => sum + (Number(prize.weight) || 0), 0) || 1;
+  const quotas = list.map((prize) => ({
+    prize,
+    exact: (remaining * (Number(prize.weight) || 0)) / totalWeight,
+  }));
+  let used = list.length * base;
+  for (const item of quotas) {
+    const count = base + Math.floor(item.exact);
+    counts[item.prize.id] = count;
+    used += Math.floor(item.exact);
+  }
+  const leftover = total - used;
+  quotas
+    .sort((a, b) => (b.exact - Math.floor(b.exact)) - (a.exact - Math.floor(a.exact)))
+    .slice(0, Math.max(0, leftover))
+    .forEach((item) => {
+      counts[item.prize.id] += 1;
+    });
+  return counts;
+}
+
+export function poolStock(pool) {
+  const counts = pool.prizeCounts || allocatePrizeCounts(pool.prizes || [], pool.size || 100);
+  const remaining = (pool.prizes || []).reduce(
+    (sum, prize) => sum + Math.max(0, Number(pool.remainingCounts?.[prize.id] ?? counts[prize.id]) || 0),
+    0,
+  );
+  return { total: Object.values(counts).reduce((sum, count) => sum + count, 0), remaining };
+}
+
+export function resetPool(state, poolId, now = new Date()) {
+  const pool = getPool(state, poolId);
+  if (!pool) throw new Error('奖池不存在');
+  pool.size = clampPoolSize(pool.size, pool.prizes.length);
+  pool.prizeCounts = allocatePrizeCounts(pool.prizes, pool.size);
+  pool.remainingCounts = { ...pool.prizeCounts };
+  pool.resetAt = nowISO(now);
+  const drawPoolIds = new Map((state.draws || []).map((draw) => [draw.id, draw.poolId]));
+  for (const entry of state.ledger || []) {
+    if (entry.kind !== 'lottery') continue;
+    const belongs = entry.poolId ? entry.poolId === poolId : drawPoolIds.get(entry.refId) === poolId;
+    if (belongs) entry.hiddenAt = pool.resetAt;
+  }
+  return pool;
+}
+
 export function addPool(state, input = {}) {
   const title = normalizeString(input.title, '', 80);
   if (!title) throw new Error('奖池名称不能为空');
@@ -1298,12 +1376,18 @@ export function addPool(state, input = {}) {
     }))
     .filter(Boolean);
   if (prizes.length < 2) throw new Error('奖池至少需要两个结果');
+  const size = clampPoolSize(input.size, prizes.length);
+  const prizeCounts = allocatePrizeCounts(prizes, size);
   const pool = {
     id: uid('pool'),
     title,
     subtitle: normalizeString(input.subtitle, '', 200),
     cost: Math.round(clamp(input.cost ?? 50, 1, 100_000)),
     icon: normalizeString(input.icon, '🌌', 8) || '🌌',
+    size,
+    prizeCounts,
+    remainingCounts: { ...prizeCounts },
+    resetAt: null,
     prizes,
   };
   state.pools.push(pool);
@@ -1332,6 +1416,12 @@ export function updatePool(state, poolId, patch = {}) {
       .filter(Boolean);
     if (prizes.length < 2) throw new Error('奖池至少需要两个结果');
     pool.prizes = prizes;
+  }
+  if (patch.size !== undefined || Array.isArray(patch.prizes)) {
+    pool.size = clampPoolSize(patch.size ?? pool.size, pool.prizes.length);
+    pool.prizeCounts = allocatePrizeCounts(pool.prizes, pool.size);
+    pool.remainingCounts = { ...pool.prizeCounts };
+    pool.resetAt = null;
   }
   return pool;
 }
@@ -1376,30 +1466,53 @@ export function drawPool(state, poolId, now = new Date(), random = Math.random) 
   if (balanceBefore < pool.cost) {
     return { ok: false, error: `还差 ${pool.cost - balanceBefore} 积分` };
   }
-  const prize = pickPrize(pool, random);
+  const configuredCounts = pool.prizeCounts || allocatePrizeCounts(pool.prizes, pool.size || 100);
+  const counts = { ...configuredCounts, ...(pool.remainingCounts || {}) };
+  const stock = poolStock(pool);
+  if (stock.remaining <= 0) {
+    return { ok: false, error: '这个奖池已经抽完了，重置后再抽' };
+  }
+  let roll = random() * stock.remaining;
+  let prize = null;
+  for (const candidate of pool.prizes) {
+    const count = Math.max(0, Number(counts[candidate.id]) || 0);
+    if (roll < count) {
+      prize = candidate;
+      break;
+    }
+    roll -= count;
+  }
+  prize = prize || pool.prizes.find((candidate) => counts[candidate.id] > 0);
+  if (!prize) return { ok: false, error: '这个奖池已经抽完了，重置后再抽' };
+  counts[prize.id] = Math.max(0, (Number(counts[prize.id]) || 0) - 1);
+  pool.remainingCounts = counts;
   const draw = {
     id: uid('dr'),
     poolId: pool.id,
     poolTitle: pool.title,
     cost: pool.cost,
+    prizeId: prize.id,
     prizeLabel: prize.label,
     points: prize.points,
     at: nowISO(now),
   };
   state.draws.unshift(draw);
-  state.draws = state.draws.slice(0, 300);
+  state.draws = state.draws.slice(0, 1000);
   state.ledger.push({
     id: uid('lg'),
     kind: 'lottery',
     amount: prize.points - pool.cost,
     at: draw.at,
     refId: draw.id,
+    poolId: pool.id,
+    hiddenAt: null,
     note: `${pool.title} · ${prize.label}`,
   });
   return {
     ok: true,
     draw,
     prize,
+    remaining: stock.remaining - 1,
     balance: balanceBefore - pool.cost + prize.points,
   };
 }

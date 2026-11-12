@@ -730,6 +730,11 @@ export function renderPoolEditor(ctx) {
             html: `<input class="input" data-pool-field="subtitle" value="${escapeHtml(draft.subtitle)}" placeholder="大概率空手而归" maxlength="200" />`,
           })}
         </div>
+        ${field({
+          label: '奖品总数 N',
+          html: `<input class="input" type="number" min="${draft.prizes.length}" max="5000" step="1" data-pool-field="size" value="${draft.size || 100}" />`,
+          hint: '按权重比例分配成有限库存；数量足够时每种至少 1 个，抽完需要重置。',
+        })}
         <div class="field" style="margin-top:14px">
           <label>结果与权重</label>
           <div class="pool-editor-rows" id="pool-editor-rows">
@@ -796,6 +801,7 @@ export function renderDraw(ctx) {
           <div class="draw-result">
             <div class="draw-points ${prize?.points ? '' : 'zero'}">${prize?.points ? `+${prize.points.toLocaleString('zh-CN')}` : '0 分'}</div>
             <div class="draw-net">本次 ${draw.points > 0 ? `收回 ${draw.points}` : '没有回报'} · 净变化 ${draw.points - draw.cost > 0 ? '+' : ''}${draw.points - draw.cost} · 余额 ${modal.balance}</div>
+            <div class="draw-stock">${modal.remaining > 0 ? `奖池还剩 ${modal.remaining} 个奖品` : '奖池已抽完，记得重置'}</div>
           </div>
           ${big ? '<div class="hint" style="margin-top:10px;color:var(--accent)">这一把，桌面都亮了一下。</div>' : ''}
           <div class="draw-actions">

@@ -33,9 +33,11 @@ import {
   habitCompletion,
   markRedemptionUsed,
   moveOverdueToWeek,
+  poolStock,
   projectStats,
   projectTasks,
   redeemReward,
+  resetPool,
   startOfWeekISO,
   todayISO,
   uid,
@@ -177,6 +179,7 @@ function newPoolDraft() {
     subtitle: '大概率空手而归，小概率带走一大笔。',
     icon: '🌌',
     cost: 100,
+    size: 100,
     prizes: [
       { label: '空手而归', weight: 65, points: 0 },
       { label: '回一点血', weight: 20, points: 20 },
@@ -194,6 +197,7 @@ function poolToDraft(pool) {
     subtitle: pool.subtitle,
     icon: pool.icon,
     cost: pool.cost,
+    size: pool.size || 100,
     prizes: pool.prizes.map((prize) => ({
       label: prize.label,
       weight: prize.weight,
@@ -302,6 +306,10 @@ function startDraw(ctx, poolId) {
   const pool = getPool(ctx.state, poolId);
   if (!pool) return;
   const balance = computeBalance(ctx.state);
+  if (poolStock(pool).remaining <= 0) {
+    ctx.showToast('这个奖池已经抽完了，先重置');
+    return;
+  }
   if (balance < pool.cost) {
     ctx.showToast(`还差 ${pool.cost - balance} 积分`);
     return;
@@ -342,6 +350,7 @@ function startDraw(ctx, poolId) {
       draw: result.draw,
       prize: result.prize,
       balance: result.balance,
+      remaining: result.remaining,
     };
     ctx.render();
     ctx.persist();
@@ -1372,6 +1381,11 @@ export const ACTIONS = {
       setModalError(ctx, '每次花费至少 1 分');
       return;
     }
+    const size = Math.round(Number(draft.size) || 100);
+    if (size < draft.prizes.length || size > 5000) {
+      setModalError(ctx, `奖品总数需要在 ${draft.prizes.length} 到 5000 之间`);
+      return;
+    }
     if (draft.prizes.some((prize) => !String(prize.label || '').trim())) {
       setModalError(ctx, '每个结果都需要名字');
       return;
@@ -1390,6 +1404,7 @@ export const ACTIONS = {
       subtitle: draft.subtitle,
       icon: draft.icon,
       cost: Number(draft.cost),
+      size,
       prizes: draft.prizes.map((prize) => ({
         label: prize.label,
         weight: Number(prize.weight),
@@ -1438,6 +1453,31 @@ export const ACTIONS = {
   },
   'draw-pool': (ctx, el) => startDraw(ctx, el.dataset.id),
   'draw-again': (ctx, el) => startDraw(ctx, el.dataset.id),
+  'reset-pool': (ctx, el) => {
+    const pool = getPool(ctx.state, el.dataset.id);
+    if (!pool) return;
+    ctx.openConfirm({
+      title: `重置「${pool.title}」？`,
+      eyebrow: 'Reset pool',
+      message: `库存会恢复到 ${pool.size} 个，按当前比例重新分配；这个奖池的抽奖流水会从列表隐藏，积分余额和其他流水不变。`,
+      confirmLabel: '重置奖池',
+      onConfirm: () => {
+        resetPool(ctx.state, pool.id);
+        ctx.render();
+        ctx.persist();
+        ctx.showToast(`「${pool.title}」已重置`);
+      },
+    });
+  },
+  'ledger-tab': (ctx, el) => {
+    ctx.ui.ledgerTab = el.dataset.tab;
+    ctx.ui.ledgerPage = 0;
+    ctx.render();
+  },
+  'ledger-page': (ctx, el) => {
+    ctx.ui.ledgerPage = Math.max(0, (Number(ctx.ui.ledgerPage) || 0) + Number(el.dataset.page || 0));
+    ctx.render();
+  },
   'rewards-tab': (ctx, el) => {
     ctx.ui.rewardsTab = el.dataset.tab;
     ctx.render();

@@ -32,8 +32,10 @@ import {
   normalizePlan,
   normalizeState,
   poolOdds,
+  poolStock,
   projectTasks,
   redeemReward,
+  resetPool,
   startOfWeekISO,
   uncompleteBonusTask,
   uncompleteHabit,
@@ -178,6 +180,37 @@ test('pool odds and draw ledger are consistent', () => {
   const summary = ledgerSummary(state);
   assert.equal(summary.prizePoints, 8888);
   assert.equal(summary.spent, pool.cost);
+});
+
+test('finite pool stock drains, rejects empty draws, and resets only pool ledger', () => {
+  const state = createDefaultState(NOW);
+  state.ledger.push({
+    id: 'lg_seed',
+    kind: 'adjust',
+    amount: 20000,
+    at: '2026-11-05T03:00:00.000Z',
+    refId: 'seed',
+    note: 'seed',
+  });
+  const pool = state.pools[0];
+  const stock = poolStock(pool);
+  assert.ok(stock.total >= 6);
+  assert.equal(stock.remaining, stock.total);
+  let draws = 0;
+  while (poolStock(pool).remaining > 0 && draws < 200) {
+    const result = drawPool(state, pool.id, NOW, () => 0);
+    assert.equal(result.ok, true);
+    draws += 1;
+  }
+  assert.equal(poolStock(pool).remaining, 0);
+  const empty = drawPool(state, pool.id, NOW, () => 0);
+  assert.equal(empty.ok, false);
+  assert.match(empty.error, /抽完/);
+  const hiddenBefore = state.ledger.filter((entry) => entry.kind === 'lottery' && entry.hiddenAt).length;
+  resetPool(state, pool.id, NOW);
+  assert.equal(poolStock(pool).remaining, stock.total);
+  assert.ok(state.ledger.filter((entry) => entry.kind === 'lottery' && entry.hiddenAt).length > hiddenBefore);
+  assert.ok(state.ledger.some((entry) => entry.kind === 'adjust'));
 });
 
 test('drawing without enough points is rejected', () => {

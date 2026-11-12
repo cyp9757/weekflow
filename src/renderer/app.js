@@ -30,7 +30,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.11.1',
+  version: '0.12.0',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),
@@ -46,6 +46,8 @@ const ctx = {
     navOpen: false,
     selectedWeek: startOfWeekISO(todayISO()),
     redemptionsTab: 'all',
+    ledgerTab: 'points',
+    ledgerPage: 0,
     expandedProjects: new Set(),
     showDone: false,
     justDone: null,
@@ -574,6 +576,9 @@ function setupEvents() {
     }
     if (target.matches('[data-project-field]')) {
       if (ctx.ui.modal?.draft) ctx.ui.modal.draft[target.dataset.projectField] = target.value;
+    }
+    if (target.matches('[data-pool-field]')) {
+      if (ctx.ui.modal?.draft) ctx.ui.modal.draft[target.dataset.poolField] = target.value;
     }
     if (target.matches('[data-reward-field]')) {
       if (ctx.ui.modal?.draft) ctx.ui.modal.draft[target.dataset.rewardField] = target.value;

@@ -2,6 +2,7 @@ import {
   computeBalance,
   ledgerSummary,
   poolOdds,
+  poolStock,
 } from '../../shared/domain.js';
 import { icon } from '../lib/icons.js';
 import { escapeHtml, pct } from '../lib/format.js';
@@ -41,12 +42,16 @@ function renderReward(ctx, reward) {
 
 function renderPool(ctx, pool) {
   const odds = poolOdds(pool);
+  const stock = poolStock(pool);
   const jackpot = Math.max(...pool.prizes.map((prize) => prize.points));
   const enough = ctx.balance >= pool.cost;
+  const available = stock.remaining > 0;
   const expanded = ctx.ui.expandedPools.has(pool.id);
   const ordered = [...odds.prizes].sort((a, b) => b.probability - a.probability);
+  const remainingFor = (prize) => Math.max(0, Number(pool.remainingCounts?.[prize.id]) || 0);
+  const stockPct = stock.total ? Math.round((stock.remaining / stock.total) * 100) : 0;
   return `
-    <article class="pool-card">
+    <article class="pool-card" data-pool-id="${pool.id}">
       <div class="pool-top">
         <div class="pool-icon">${escapeHtml(pool.icon)}</div>
         <div style="min-width:0;flex:1">
@@ -61,9 +66,15 @@ function renderPool(ctx, pool) {
       <div class="pool-meta">
         <span>${pool.prizes.length} 种结果</span>
         <span class="dot"></span>
+        <span>共 ${stock.total} 个奖品</span>
+        <span class="dot"></span>
         <span>长期回报 ${pct(odds.rtp, 1)}</span>
         <span class="dot"></span>
         <button class="text-button" data-action="toggle-pool-odds" data-id="${pool.id}">${expanded ? '收起概率' : '查看概率'}</button>
+      </div>
+      <div class="pool-stock">
+        <div class="pool-stock-label"><span>剩余奖品</span><strong>${stock.remaining} / ${stock.total}</strong></div>
+        <div class="pool-stock-track"><span style="width:${stockPct}%"></span></div>
       </div>
       ${
         expanded
@@ -75,7 +86,7 @@ function renderPool(ctx, pool) {
                   <span class="label">${escapeHtml(prize.label)}</span>
                   <span class="bar"><span style="width:${Math.max(1, prize.probability * 100)}%"></span></span>
                   <span class="prob">${(prize.probability * 100).toFixed(1)}%</span>
-                  <span class="prize">${prize.points ? `+${prize.points}` : '空'}</span>
+                  <span class="prize">${prize.points ? `+${prize.points}` : '空'} · 剩 ${remainingFor(prize)}</span>
                 </div>`,
                 )
                 .join('')}
@@ -85,10 +96,11 @@ function renderPool(ctx, pool) {
       <div class="pool-draw-row">
         <span class="pool-cost">${pool.cost} 分 / 次</span>
         <span class="spacer"></span>
+        <button class="btn btn-secondary btn-sm" data-action="reset-pool" data-id="${pool.id}" aria-label="重置奖池" title="重置奖池">${icon('undo', 12)} 重置</button>
         <button class="btn btn-secondary btn-sm" data-action="edit-pool" data-id="${pool.id}" aria-label="编辑奖池" title="编辑奖池">${icon('edit', 12)}</button>
         <button class="btn btn-secondary btn-sm" data-action="delete-pool" data-id="${pool.id}" aria-label="删除奖池" title="删除奖池">${icon('trash', 12)}</button>
-        <button class="btn btn-primary btn-sm" data-action="draw-pool" data-id="${pool.id}" ${enough ? '' : 'disabled'}>
-          ${icon('dice', 13)} ${enough ? '抽一次' : `差 ${pool.cost - ctx.balance} 分`}
+        <button class="btn btn-primary btn-sm" data-action="draw-pool" data-id="${pool.id}" ${enough && available ? '' : 'disabled'}>
+          ${icon('dice', 13)} ${!available ? '已抽完' : enough ? '抽一次' : `差 ${pool.cost - ctx.balance} 分`}
         </button>
       </div>
     </article>
@@ -96,17 +108,22 @@ function renderPool(ctx, pool) {
 }
 
 function renderHistory(ctx) {
-  const tab = ctx.ui.rewardsTab || 'rewards';
-  const source = (ctx.state.ledger || []).filter(
-    (entry) => tab === 'all' || entry.kind !== 'task',
-  );
-  const entries = [...source]
-    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
-    .slice(0, 40);
+  const tab = ctx.ui.ledgerTab || 'points';
+  const source = (ctx.state.ledger || [])
+    .filter((entry) => !entry.hiddenAt)
+    .filter((entry) => (tab === 'lottery' ? entry.kind === 'lottery' : entry.kind !== 'lottery'))
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const capped = source.slice(0, 200);
+  const pageSize = 20;
+  const pages = Math.max(1, Math.ceil(capped.length / pageSize));
+  const page = Math.min(Math.max(Number(ctx.ui.ledgerPage) || 0, 0), pages - 1);
+  const entries = capped.slice(page * pageSize, (page + 1) * pageSize);
   if (!entries.length) {
-    return `<div class="hint" style="text-align:center;padding:24px 0">${tab === 'all' ? '还没有积分记录。完成第一件任务就会开始。' : '还没有兑换或抽奖记录。'}</div>`;
+    return `<div class="hint" style="text-align:center;padding:24px 0">${
+      tab === 'lottery' ? '还没有奖池抽奖记录。' : '还没有积分或兑换记录。完成第一件任务就会开始。'
+    }</div>`;
   }
-  return entries
+  const rows = entries
     .map((entry) => {
       const iconName =
         entry.kind === 'task'
@@ -132,6 +149,14 @@ function renderHistory(ctx) {
       `;
     })
     .join('');
+  const pager = `
+    <div class="ledger-pager">
+      <button class="pager-btn" data-action="ledger-page" data-page="-1" ${page <= 0 ? 'disabled' : ''}>上一页</button>
+      <span>第 ${page + 1} / ${pages} 页 · 显示最近 ${capped.length} 条${source.length > 200 ? '（最多 200 条）' : ''}</span>
+      <button class="pager-btn" data-action="ledger-page" data-page="1" ${page >= pages - 1 ? 'disabled' : ''}>下一页</button>
+    </div>
+  `;
+  return rows + pager;
 }
 
 export function renderRewards(ctx) {
@@ -139,7 +164,7 @@ export function renderRewards(ctx) {
   const rewards = [...ctx.state.rewards]
     .filter((reward) => !reward.archived)
     .sort((a, b) => a.cost - b.cost);
-  const tab = ctx.ui.rewardsTab || 'rewards';
+  const ledgerTab = ctx.ui.ledgerTab || 'points';
   const balance = summary.balance;
 
   return `
@@ -204,16 +229,16 @@ export function renderRewards(ctx) {
 
       <div class="section">
         <div class="section-head">
-          <span class="section-title">积分流水</span>
+          <span class="section-title">${ledgerTab === 'lottery' ? '奖池流水' : '积分与兑换'}</span>
           <span class="section-rule"></span>
           <div class="chip-row">
-            <button class="chip ${tab === 'rewards' ? 'active' : ''}" data-action="rewards-tab" data-tab="rewards">奖励流水</button>
-            <button class="chip ${tab === 'all' ? 'active' : ''}" data-action="rewards-tab" data-tab="all">全部</button>
+            <button class="chip ${ledgerTab === 'points' ? 'active' : ''}" data-action="ledger-tab" data-tab="points">积分 / 兑换</button>
+            <button class="chip ${ledgerTab === 'lottery' ? 'active' : ''}" data-action="ledger-tab" data-tab="lottery">奖池</button>
           </div>
         </div>
         ${renderHistory(ctx)}
       </div>
-      <div class="hint" style="margin-top:14px">积分只在本地记账。奖池概率独立，长期回报率只用于展示期望，不保证任何一次结果。</div>
+      <div class="hint" style="margin-top:14px">奖池是有限库存：抽一个少一个，抽完需要重置；重置只清空该奖池的流水，不影响积分余额和其他流水。流水最多显示最近 200 条。</div>
     </div>
   `;
 }

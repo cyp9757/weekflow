@@ -119,6 +119,7 @@ export function defaultPools() {
       title: '深空奖池',
       subtitle: '大概率空手而归，小概率带走一大笔。',
       cost: 100,
+      size: 100,
       icon: '🌌',
       prizes: [
         { id: 'pz_0', label: '空手而归', weight: 65, points: 0 },
