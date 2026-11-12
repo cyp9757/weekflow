@@ -436,6 +436,29 @@ async function createWindow() {
   if (IS_DEV) win.webContents.openDevTools({ mode: 'detach' });
 }
 
+function getLoginTarget() {
+  // Portable builds must launch the launcher, because it sets WEEKFLOW_DATA_DIR.
+  const dataDir = resolveDataDir(app);
+  const portableRoot = path.dirname(dataDir);
+  const portableLauncher = path.join(portableRoot, 'START_WEEKFLOW.cmd');
+  const usePortableLauncher =
+    app.isPackaged && process.platform === 'win32' && fs.existsSync(portableLauncher);
+  if (usePortableLauncher) {
+    return {
+      path: process.env.ComSpec || path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'cmd.exe'),
+      args: ['/c', portableLauncher],
+    };
+  }
+  return {
+    path: process.execPath,
+    args: app.isPackaged ? [] : [ROOT],
+  };
+}
+
+function getLoginEnabled() {
+  return app.getLoginItemSettings(getLoginTarget()).openAtLogin;
+}
+
 function registerIpc() {
   ipcMain.handle('app:bootstrap', () => ({
     state: store.getState(),
@@ -506,34 +529,20 @@ function registerIpc() {
   });
   ipcMain.handle('app:get-login', () => {
     try {
-      return { ok: true, enabled: app.getLoginItemSettings().openAtLogin };
+      return { ok: true, enabled: getLoginEnabled() };
     } catch (error) {
       return { ok: false, error: error.message || String(error), enabled: false };
     }
   });
   ipcMain.handle('app:set-login', (_event, enabled) => {
     try {
-      // In portable mode, launch the launcher rather than the runtime exe.
-      // The launcher sets WEEKFLOW_DATA_DIR, so login startup reads the same data/.
-      const dataDir = resolveDataDir(app);
-      const portableRoot = path.dirname(dataDir);
-      const portableLauncher = path.join(portableRoot, 'START_WEEKFLOW.cmd');
-      const usePortableLauncher =
-        app.isPackaged && process.platform === 'win32' && fs.existsSync(portableLauncher);
-      const command = usePortableLauncher
-        ? process.env.ComSpec || path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'cmd.exe')
-        : process.execPath;
-      const args = usePortableLauncher
-        ? ['/c', `"${portableLauncher}"`]
-        : app.isPackaged
-          ? []
-          : [ROOT];
+      const target = getLoginTarget();
       app.setLoginItemSettings({
         openAtLogin: Boolean(enabled),
-        path: command,
-        args,
+        path: target.path,
+        args: target.args,
       });
-      return { ok: true, enabled: app.getLoginItemSettings().openAtLogin };
+      return { ok: true, enabled: getLoginEnabled() };
     } catch (error) {
       return { ok: false, error: error.message || String(error) };
     }
@@ -1003,6 +1012,10 @@ async function runSelfTest() {
         await wait(220);
         results.launchSetting = Boolean(document.querySelector('[data-setting="launchAtLogin"]'));
         results.login = await window.weekflow.getLogin();
+        const loginOn = await window.weekflow.setLogin(true);
+        const loginCheck = await window.weekflow.getLogin();
+        const loginOff = await window.weekflow.setLogin(false);
+        results.loginToggle = { on: loginOn, check: loginCheck, off: loginOff };
 
         const autoFade = ctx.state.settings.autoFade;
         A['setting-change'](ctx, { dataset: { setting: 'autoFade' }, checked: !autoFade });
@@ -1040,6 +1053,12 @@ async function runSelfTest() {
         results.autoFade?.body === false &&
         results.launchSetting &&
         results.login?.ok &&
+        results.loginToggle?.on?.ok &&
+        results.loginToggle?.on?.enabled &&
+        results.loginToggle?.check?.ok &&
+        results.loginToggle?.check?.enabled &&
+        results.loginToggle?.off?.ok &&
+        !results.loginToggle?.off?.enabled &&
         results.nav?.open &&
         results.nav?.tabbar &&
         results.nav?.handle &&
