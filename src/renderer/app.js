@@ -30,7 +30,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.12.2',
+  version: '0.12.3',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),
@@ -203,22 +203,21 @@ function compactRow(kind, label, title, points, { done = false, empty = false, r
   `;
 }
 
-function compactProject(project, tasks) {
+function compactProject(project, tasks, allTasks) {
   const color = project?.color || 'var(--accent)';
-  const done = tasks.filter((task) => task.status === 'done').length;
-  const progress = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+  const done = allTasks.filter((task) => task.status === 'done').length;
+  const progress = allTasks.length ? Math.round((done / allTasks.length) * 100) : 0;
   return `
     <div class="compact-project" style="--project-color:${color}">
       <div class="compact-project-head">
         <span class="compact-project-dot"></span>
         <span class="compact-project-title">${escapeHtml(project?.title || '单件小事')}</span>
-        <span class="compact-project-count">${done}/${tasks.length}</span>
+        <span class="compact-project-count">${done}/${allTasks.length}</span>
       </div>
       <div class="compact-project-track"><span style="width:${progress}%"></span></div>
       ${tasks
         .map((task) =>
-          compactRow('week', '', task.title, task.status === 'done' ? '已完成' : `+${task.points}`, {
-            done: task.status === 'done',
+          compactRow('week', '', task.title, `+${task.points}`, {
             repeat: Boolean(task.seriesId || task.recurring),
             hideTag: true,
           }),
@@ -231,11 +230,13 @@ function compactProject(project, tasks) {
 function renderCompact() {
   const today = todayISO();
   const habits = activeHabits(ctx.state);
+  const openHabits = habits.filter((habit) => !habitCompletion(ctx.state, habit.id, today));
   const weekTasks = tasksForWeek(ctx.state, ctx.currentWeek);
+  const openWeekTasks = weekTasks.filter((task) => task.status !== 'done');
   const stats = weekStats(ctx.state, ctx.currentWeek);
   const progress = Math.round(stats.progress * 100);
   const groups = new Map();
-  for (const task of weekTasks) {
+  for (const task of openWeekTasks) {
     const key = task.projectId || '__solo';
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(task);
@@ -253,29 +254,29 @@ function renderCompact() {
       </div>
       <div class="compact-body">
         <div class="compact-section">
-          <div class="compact-section-head"><span>每日</span><span>${habits.filter((habit) => habitCompletion(ctx.state, habit.id, today)).length}/${habits.length}</span></div>
+          <div class="compact-section-head"><span>每日</span><span>${openHabits.length ? `剩余 ${openHabits.length}` : '已清空'}</span></div>
           ${
-            habits.length
-              ? `<div class="compact-daily-grid">${habits
-                  .map((habit) => {
-                    const done = Boolean(habitCompletion(ctx.state, habit.id, today));
-                    return compactRow('daily', '', habit.title, done ? '已完成' : `+${habit.points}`, { done, hideTag: true });
-                  })
+            openHabits.length
+              ? `<div class="compact-daily-grid">${openHabits
+                  .map((habit) => compactRow('daily', '', habit.title, `+${habit.points}`, { hideTag: true }))
                   .join('')}</div>`
-              : compactRow('daily', '每日', '还没有每日任务', '—', { empty: true })
+              : compactRow('daily', '每日', '今天的每日任务已完成', '✓', { empty: true, done: true })
           }
         </div>
         <div class="compact-section">
-          <div class="compact-section-head"><span>每周</span><span>${stats.done}/${stats.total}</span></div>
+          <div class="compact-section-head"><span>每周</span><span>${openWeekTasks.length ? `剩余 ${openWeekTasks.length}` : '已清空'}</span></div>
           ${
             groups.size
               ? [...groups.entries()]
                   .map(([projectId, tasks]) => {
                     const project = projectId === '__solo' ? null : ctx.state.projects.find((item) => item.id === projectId);
-                    return compactProject(project, tasks);
+                    const allTasks = weekTasks.filter((task) =>
+                      project ? task.projectId === project.id : !task.projectId,
+                    );
+                    return compactProject(project, tasks, allTasks);
                   })
                   .join('')
-              : compactRow('week', '每周', '本周已清空', '—', { empty: true })
+              : compactRow('week', '每周', '本周任务已全部完成', '✓', { empty: true, done: true })
           }
         </div>
       </div>

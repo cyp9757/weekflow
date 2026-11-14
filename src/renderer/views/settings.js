@@ -133,7 +133,7 @@ export function renderSettings(ctx) {
           ${switchRow({
             setting: 'doublePoints',
             name: '周末 / 节假日双倍',
-            desc: '周六日或自定义节假日完成任务，积分 ×2。',
+            desc: '周六日或自定义节假日完成周任务/待办，积分 ×2；每日任务按设定分。',
             checked: settings.doublePoints,
             iconName: 'sparkles',
           })}

@@ -359,6 +359,7 @@ export function normalizeState(raw = {}, now = new Date()) {
 
   const idForCompletion = uniqueIdFactory();
   const seenHabitDates = new Set();
+  const habitPointMap = new Map(habits.map((habit) => [habit.id, habit.points]));
   const habitCompletions = (Array.isArray(input.habitCompletions) ? input.habitCompletions : [])
     .slice(0, 5000)
     .map((completion) => {
@@ -367,11 +368,12 @@ export function normalizeState(raw = {}, now = new Date()) {
       const key = `${completion.habitId}|${completion.date}`;
       if (seenHabitDates.has(key)) return null;
       seenHabitDates.add(key);
+      const habitPoints = habitPointMap.get(completion.habitId) ?? 10;
       return {
         id: idForCompletion(completion.id, 'hc'),
         habitId: completion.habitId,
         date: completion.date,
-        points: Math.round(clamp(completion.points ?? 10, 1, 200)),
+        points: Math.round(clamp(completion.points ?? habitPoints, 1, habitPoints)),
         at: normalizeString(completion.at, `${completion.date}T12:00:00.000Z`, 40),
       };
     })
@@ -731,7 +733,9 @@ export function completeHabit(state, habitId, date = todayISO(), now = new Date(
   if (habitCompletion(state, habitId, date)) {
     return { ok: false, error: '今天已经完成过了' };
   }
-  const points = habit.points * (isDoublePointsDate(state.settings, date) ? 2 : 1);
+  // Daily tasks use their configured points. Weekend/holiday double applies to
+  // weekly tasks and bonus tasks, not the daily habit list.
+  const points = habit.points;
   const completion = {
     id: uid('hc'),
     habitId,

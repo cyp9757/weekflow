@@ -474,6 +474,15 @@ test('weekend and holiday completions award double points', () => {
   assert.equal(holiday.points, 60);
 });
 
+test('daily habits keep configured points on weekends', () => {
+  const state = createDefaultState(NOW);
+  const habit = addHabit(state, { title: '陪猫咪玩10min', points: 10 }, NOW);
+  const result = completeHabit(state, habit.id, '2026-11-07', new Date('2026-11-07T12:00:00+08:00'));
+  assert.equal(result.ok, true);
+  assert.equal(result.points, 10);
+  assert.equal(state.habitCompletions.find((item) => item.habitId === habit.id)?.points, 10);
+});
+
 test('redemption records can be marked used and reverted', () => {
   const state = createDefaultState(NOW);
   const reward = [...state.rewards].sort((left, right) => left.cost - right.cost)[0];

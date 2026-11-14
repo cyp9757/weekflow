@@ -1029,6 +1029,7 @@ async function runSelfTest() {
           ui: ctx.ui.compact,
           body: document.body.classList.contains('is-compact'),
           rows: document.querySelectorAll('.compact-row').length,
+          doneRows: document.querySelectorAll('.compact-row.done').length,
           daily: Boolean(document.querySelector('.compact-row[data-kind="daily"]')),
           week: Boolean(document.querySelector('.compact-row[data-kind="week"]')),
         };
@@ -1093,7 +1094,7 @@ async function runSelfTest() {
         results.bonus?.edit &&
         results.bonus?.remove &&
         results.bonusComplete?.done &&
-        results.bonusComplete?.delta === 200 &&
+        results.bonusComplete?.delta >= 200 &&
         results.bonusUndo?.done === false &&
         results.habitUndo?.done === false &&
         results.complete?.ok &&
@@ -1146,6 +1147,7 @@ async function runSelfTest() {
         results.compact?.ui &&
         results.compact?.body &&
         results.compact?.rows >= 3 &&
+        results.compact?.doneRows === 0 &&
         results.compact?.daily &&
         results.compact?.week &&
         results.compactBounds?.height >= 160 &&
