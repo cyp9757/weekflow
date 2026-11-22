@@ -47,6 +47,10 @@ function renderPool(ctx, pool) {
   const enough = ctx.balance >= pool.cost;
   const available = stock.remaining > 0;
   const canDraw = (count) => stock.remaining >= count && ctx.balance >= pool.cost * count;
+  const drawReason = (count) =>
+    stock.remaining < count
+      ? `库存只剩 ${stock.remaining} 个`
+      : `还差 ${pool.cost * count - ctx.balance} 分`;
   const expanded = ctx.ui.expandedPools.has(pool.id);
   const ordered = [...odds.prizes].sort((a, b) => b.probability - a.probability);
   const remainingFor = (prize) => Math.max(0, Number(pool.remainingCounts?.[prize.id]) || 0);
@@ -137,10 +141,10 @@ function renderPool(ctx, pool) {
         </button>
       </div>
       <div class="pool-draw-multi">
-        <button class="btn btn-secondary btn-sm" data-action="draw-pool" data-id="${pool.id}" data-count="5" ${canDraw(5) ? '' : 'disabled'}>
+        <button class="btn btn-secondary btn-sm" data-action="draw-pool" data-id="${pool.id}" data-count="5" ${canDraw(5) ? '' : 'disabled'} title="${canDraw(5) ? `抽 5 次，共 ${pool.cost * 5} 分` : drawReason(5)}">
           ${icon('dice', 12)} 五连 · ${pool.cost * 5} 分
         </button>
-        <button class="btn btn-secondary btn-sm" data-action="draw-pool" data-id="${pool.id}" data-count="10" ${canDraw(10) ? '' : 'disabled'}>
+        <button class="btn btn-secondary btn-sm" data-action="draw-pool" data-id="${pool.id}" data-count="10" ${canDraw(10) ? '' : 'disabled'} title="${canDraw(10) ? `抽 10 次，共 ${pool.cost * 10} 分` : drawReason(10)}">
           ${icon('dice', 12)} 十连 · ${pool.cost * 10} 分
         </button>
       </div>

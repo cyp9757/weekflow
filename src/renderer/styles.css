@@ -3273,9 +3273,19 @@ body.is-compact .boot {
 .pool-draw-multi .btn {
   flex: 1;
   min-width: 0;
-  font-size: 9px;
+  font-size: 9.5px;
+  font-weight: 600;
   padding-left: 5px;
   padding-right: 5px;
+}
+
+.pool-draw-row .btn:disabled,
+.pool-draw-multi .btn:disabled {
+  opacity: 1;
+  color: var(--muted);
+  background: rgb(var(--overlay-rgb) / 5%);
+  border-color: rgb(var(--overlay-rgb) / 14%);
+  cursor: not-allowed;
 }
 
 .pool-editor-rows {
