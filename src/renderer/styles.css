@@ -4846,7 +4846,7 @@ body.is-compact .overlay {
   min-height: 24px;
   padding: 3px 7px;
   border-radius: 7px;
-  background: rgb(var(--overlay-rgb) / 3%);
+  background: rgb(255 255 255 / 5%);
   font-size: 9.5px;
 }
 
@@ -4861,15 +4861,24 @@ body.is-compact .overlay {
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  color: var(--text-soft);
+  color: #e6ebff;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .draw-multi-value {
   flex: none;
-  color: var(--faint);
+  color: #b9c4e6;
   font-variant-numeric: tabular-nums;
+}
+
+/* The draw stage stays dark in every theme; never inherit paper text colors. */
+.draw-stage .draw-net {
+  color: #aeb8d8;
+}
+
+.draw-stage .draw-prize-note {
+  color: #e6ebff;
 }
 
 .draw-actions {
