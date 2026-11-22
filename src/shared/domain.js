@@ -437,11 +437,13 @@ export function normalizeState(raw = {}, now = new Date()) {
         .slice(0, 12)
         .map((prize) => {
           if (!prize || typeof prize !== 'object') return null;
+          const type = prize.type === 'reward' ? 'reward' : 'points';
           return {
             id: idForPrize(prize.id, 'pz'),
+            type,
             label: normalizeString(prize.label, '未命名', 80) || '未命名',
             weight: clamp(prize.weight ?? 1, 0.0001, 100),
-            points: Math.round(clamp(prize.points ?? 0, 0, 1_000_000)),
+            points: type === 'reward' ? 0 : Math.round(clamp(prize.points ?? 0, 0, 1_000_000)),
           };
         })
         .filter(Boolean);
@@ -487,6 +489,9 @@ export function normalizeState(raw = {}, now = new Date()) {
         cost: Math.round(clamp(item.cost ?? 0, 0, 100_000)),
         at: normalizeString(item.at, nowISO(now), 40),
         usedAt: normalizeString(item.usedAt, '', 40) || null,
+        source: item.source === 'lottery' ? 'lottery' : 'redeem',
+        poolId: normalizeString(item.poolId, '', 120) || null,
+        icon: normalizeString(item.icon, '🎁', 8) || '🎁',
       };
     })
     .filter(Boolean);
@@ -1279,6 +1284,9 @@ export function redeemReward(state, rewardId, now = new Date()) {
     cost: reward.cost,
     at: nowISO(now),
     usedAt: null,
+    source: 'redeem',
+    poolId: null,
+    icon: reward.icon || '🎁',
   };
   state.redemptions.unshift(redemption);
   state.redemptions = state.redemptions.slice(0, 300);
@@ -1372,12 +1380,16 @@ export function addPool(state, input = {}) {
   const title = normalizeString(input.title, '', 80);
   if (!title) throw new Error('奖池名称不能为空');
   const prizes = (Array.isArray(input.prizes) ? input.prizes : [])
-    .map((prize) => ({
-      id: uid('pz'),
-      label: normalizeString(prize?.label, '未命名', 80) || '未命名',
-      weight: clamp(prize?.weight ?? 1, 0.0001, 100),
-      points: Math.round(clamp(prize?.points ?? 0, 0, 1_000_000)),
-    }))
+    .map((prize) => {
+      const type = prize?.type === 'reward' ? 'reward' : 'points';
+      return {
+        id: uid('pz'),
+        type,
+        label: normalizeString(prize?.label, '未命名', 80) || '未命名',
+        weight: clamp(prize?.weight ?? 1, 0.0001, 100),
+        points: type === 'reward' ? 0 : Math.round(clamp(prize?.points ?? 0, 0, 1_000_000)),
+      };
+    })
     .filter(Boolean);
   if (prizes.length < 2) throw new Error('奖池至少需要两个结果');
   const size = clampPoolSize(input.size, prizes.length);
@@ -1411,12 +1423,16 @@ export function updatePool(state, poolId, patch = {}) {
   if (patch.cost !== undefined) pool.cost = Math.round(clamp(patch.cost, 1, 100_000));
   if (Array.isArray(patch.prizes)) {
     const prizes = patch.prizes
-      .map((prize, index) => ({
-        id: pool.prizes[index]?.id || uid('pz'),
-        label: normalizeString(prize?.label, '未命名', 80) || '未命名',
-        weight: clamp(prize?.weight ?? 1, 0.0001, 100),
-        points: Math.round(clamp(prize?.points ?? 0, 0, 1_000_000)),
-      }))
+      .map((prize, index) => {
+        const type = prize?.type === 'reward' ? 'reward' : 'points';
+        return {
+          id: pool.prizes[index]?.id || uid('pz'),
+          type,
+          label: normalizeString(prize?.label, '未命名', 80) || '未命名',
+          weight: clamp(prize?.weight ?? 1, 0.0001, 100),
+          points: type === 'reward' ? 0 : Math.round(clamp(prize?.points ?? 0, 0, 1_000_000)),
+        };
+      })
       .filter(Boolean);
     if (prizes.length < 2) throw new Error('奖池至少需要两个结果');
     pool.prizes = prizes;
@@ -1490,6 +1506,7 @@ export function drawPool(state, poolId, now = new Date(), random = Math.random) 
   if (!prize) return { ok: false, error: '这个奖池已经抽完了，重置后再抽' };
   counts[prize.id] = Math.max(0, (Number(counts[prize.id]) || 0) - 1);
   pool.remainingCounts = counts;
+  const isReward = prize.type === 'reward';
   const draw = {
     id: uid('dr'),
     poolId: pool.id,
@@ -1497,27 +1514,77 @@ export function drawPool(state, poolId, now = new Date(), random = Math.random) 
     cost: pool.cost,
     prizeId: prize.id,
     prizeLabel: prize.label,
-    points: prize.points,
+    prizeType: isReward ? 'reward' : 'points',
+    points: isReward ? 0 : prize.points,
     at: nowISO(now),
   };
   state.draws.unshift(draw);
   state.draws = state.draws.slice(0, 1000);
+  let redemption = null;
+  if (isReward) {
+    redemption = {
+      id: uid('rd'),
+      rewardId: '',
+      title: prize.label,
+      cost: 0,
+      at: draw.at,
+      usedAt: null,
+      source: 'lottery',
+      poolId: pool.id,
+      icon: prize.icon || '🎁',
+    };
+    draw.redemptionId = redemption.id;
+    state.redemptions.unshift(redemption);
+    state.redemptions = state.redemptions.slice(0, 300);
+  }
   state.ledger.push({
     id: uid('lg'),
     kind: 'lottery',
-    amount: prize.points - pool.cost,
+    amount: (isReward ? 0 : prize.points) - pool.cost,
     at: draw.at,
     refId: draw.id,
     poolId: pool.id,
     hiddenAt: null,
-    note: `${pool.title} · ${prize.label}`,
+    note: `${pool.title} · ${isReward ? `奖品「${prize.label}」` : prize.label}`,
   });
   return {
     ok: true,
     draw,
     prize,
+    redemption,
     remaining: stock.remaining - 1,
-    balance: balanceBefore - pool.cost + prize.points,
+    balance: balanceBefore - pool.cost + (isReward ? 0 : prize.points),
+  };
+}
+
+export function drawPoolMany(state, poolId, count = 1, now = new Date(), random = Math.random) {
+  const pool = getPool(state, poolId);
+  if (!pool) return { ok: false, error: '奖池不存在' };
+  const times = Math.max(1, Math.min(10, Math.round(Number(count) || 1)));
+  const balanceBefore = computeBalance(state);
+  const totalCost = pool.cost * times;
+  const stock = poolStock(pool);
+  if (stock.remaining < times) {
+    return { ok: false, error: `库存不足，只剩 ${stock.remaining} 个奖品` };
+  }
+  if (balanceBefore < totalCost) {
+    return { ok: false, error: `还差 ${totalCost - balanceBefore} 积分` };
+  }
+  const results = [];
+  for (let index = 0; index < times; index += 1) {
+    const result = drawPool(state, poolId, now, random);
+    if (!result.ok) return result;
+    results.push(result);
+  }
+  return {
+    ok: true,
+    results,
+    draws: results.map((result) => result.draw),
+    prizes: results.map((result) => result.prize),
+    redemptions: results.map((result) => result.redemption).filter(Boolean),
+    spent: totalCost,
+    balance: computeBalance(state),
+    remaining: poolStock(pool).remaining,
   };
 }
 

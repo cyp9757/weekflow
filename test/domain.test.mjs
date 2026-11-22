@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   addBonusTask,
   addHabit,
+  addPool,
   addWeeksISO,
   completeBonusTask,
   completeHabit,
@@ -20,6 +21,7 @@ import {
   deleteBonusTask,
   deleteHabit,
   drawPool,
+  drawPoolMany,
   endOfWeekISO,
   habitCompletion,
   habitStats,
@@ -211,6 +213,39 @@ test('finite pool stock drains, rejects empty draws, and resets only pool ledger
   assert.equal(poolStock(pool).remaining, stock.total);
   assert.ok(state.ledger.filter((entry) => entry.kind === 'lottery' && entry.hiddenAt).length > hiddenBefore);
   assert.ok(state.ledger.some((entry) => entry.kind === 'adjust'));
+});
+
+test('multi draw consumes stock and turns non-point prizes into redemptions', () => {
+  const state = createDefaultState(NOW);
+  state.ledger.push({
+    id: 'lg_seed_multi',
+    kind: 'adjust',
+    amount: 2000,
+    at: '2026-11-05T03:00:00.000Z',
+    refId: 'seed_multi',
+    note: 'seed',
+  });
+  const pool = addPool(state, {
+    title: '混合奖池',
+    cost: 10,
+    size: 10,
+    prizes: [
+      { type: 'points', label: '积分', weight: 1, points: 20 },
+      { type: 'reward', label: '奶茶券', weight: 1, points: 0 },
+    ],
+  });
+  const result = drawPoolMany(state, pool.id, 5, NOW, () => 0.99);
+  assert.equal(result.ok, true);
+  assert.equal(result.results.length, 5);
+  assert.equal(result.spent, 50);
+  assert.equal(poolStock(pool).remaining, 5);
+  assert.equal(state.redemptions.length, 5);
+  assert.equal(state.redemptions[0].source, 'lottery');
+  assert.equal(state.redemptions[0].title, '奶茶券');
+  assert.equal(state.redemptions[0].cost, 0);
+  resetPool(state, pool.id, NOW);
+  assert.equal(poolStock(pool).remaining, 10);
+  assert.equal(state.redemptions.length, 5);
 });
 
 test('drawing without enough points is rejected', () => {

@@ -698,7 +698,10 @@ export function renderPoolEditor(ctx) {
   const totalWeight = draft.prizes.reduce((sum, prize) => sum + (Number(prize.weight) || 0), 0);
   const expected = totalWeight
     ? draft.prizes.reduce(
-        (sum, prize) => sum + ((Number(prize.weight) || 0) / totalWeight) * (Number(prize.points) || 0),
+        (sum, prize) =>
+          sum +
+          ((Number(prize.weight) || 0) / totalWeight) *
+            (prize.type === 'reward' ? 0 : Number(prize.points) || 0),
         0,
       )
     : 0;
@@ -742,9 +745,13 @@ export function renderPoolEditor(ctx) {
               .map(
                 (prize, index) => `
               <div class="pool-editor-row" data-prize-index="${index}">
-                <input class="input" data-prize-field="label" value="${escapeHtml(prize.label)}" placeholder="结果名称" maxlength="80" />
+                <select class="select" data-prize-field="type" title="结果类型">
+                  <option value="points" ${prize.type !== 'reward' ? 'selected' : ''}>积分</option>
+                  <option value="reward" ${prize.type === 'reward' ? 'selected' : ''}>奖品</option>
+                </select>
+                <input class="input" data-prize-field="label" value="${escapeHtml(prize.label)}" placeholder="结果 / 奖品名称" maxlength="80" />
                 <input class="input" type="number" min="0.01" max="100" step="any" inputmode="decimal" data-prize-field="weight" value="${prize.weight}" title="权重" />
-                <input class="input" type="number" min="0" max="1000000" step="1" data-prize-field="points" value="${prize.points}" title="奖励积分" />
+                <input class="input" type="number" min="0" max="1000000" step="1" data-prize-field="points" value="${prize.points}" title="奖励积分（奖品类型不生效）" />
                 <button type="button" class="icon-btn small" data-action="remove-prize" data-index="${index}" aria-label="删除这一行">${icon('minus', 12)}</button>
               </div>`,
               )
@@ -755,7 +762,7 @@ export function renderPoolEditor(ctx) {
             <span class="spacer"></span>
             <span class="hint" style="margin:0">总权重 ${totalWeight || 0}</span>
           </div>
-          <div class="hint">列顺序：结果名称 · 权重 · 奖励积分。权重可以随意设，程序会折算概率。</div>
+          <div class="hint">列顺序：类型 · 结果/奖品名称 · 权重 · 积分。类型选“奖品”时，抽中会进入兑换页，可核销；积分输入不生效。</div>
         </div>
         <div class="info-box" style="margin-top:10px">
           期望回报：<b class="accent">${pct(rtp, 1)}</b> · 每次花费 ${draft.cost || 0} 分。
@@ -776,13 +783,54 @@ export function renderDraw(ctx) {
   const pool = ctx.state.pools.find((item) => item.id === modal.poolId);
   if (!pool) return '';
   const spinning = modal.phase === 'spinning';
+  const count = Number(modal.count) || 1;
   const draw = modal.draw;
   const prize = modal.prize;
   const big = prize && prize.points >= 1000;
+  const results = Array.isArray(modal.results) ? modal.results : [];
+  if (!spinning && results.length > 1) {
+    const totalPoints = results.reduce((sum, result) => sum + (Number(result.prize.points) || 0), 0);
+    return sheet({
+      eyebrow: 'Result',
+      title: `${count} 连结果`,
+      sub: `${pool.title} · 共花费 ${pool.cost * count} 分`,
+      body: `
+        <div class="draw-stage">
+          <div class="draw-icon">${escapeHtml(pool.icon)}</div>
+          <div class="draw-multi-list">
+            ${results
+              .map(
+                (result) => `
+                  <div class="draw-multi-row">
+                    <span class="draw-multi-index">${result.prize.type === 'reward' ? '🎁' : '✦'}</span>
+                    <span class="draw-multi-label">${escapeHtml(result.prize.label)}</span>
+                    <span class="draw-multi-value">${result.prize.type === 'reward' ? '奖品' : result.prize.points ? `+${result.prize.points}` : '0 分'}</span>
+                  </div>
+                `,
+              )
+              .join('')}
+          </div>
+          <div class="draw-result">
+            <div class="draw-points ${totalPoints ? '' : 'zero'}">${totalPoints ? `+${totalPoints.toLocaleString('zh-CN')}` : '0 分'}</div>
+            <div class="draw-net">共 ${count} 次 · 余额 ${modal.balance}</div>
+            <div class="draw-stock">${modal.remaining > 0 ? `奖池还剩 ${modal.remaining} 个奖品` : '奖池已抽完，记得重置'}</div>
+            ${results.some((result) => result.prize.type === 'reward') ? '<div class="draw-prize-note">抽中的奖品已放进「兑换」页，可以核销。</div>' : ''}
+          </div>
+          <div class="draw-actions">
+            <button class="btn btn-ghost" data-action="close-modal">收下</button>
+            <button class="btn btn-secondary" data-action="draw-again" data-id="${pool.id}" data-count="${count}">再来 ${count} 连</button>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:10px">连抽会按顺序消耗库存；抽完需要重置奖池。</div>
+      `,
+    });
+  }
   return sheet({
     eyebrow: spinning ? 'Drawing' : 'Result',
-    title: spinning ? '正在落子…' : '这次的结果',
-    sub: spinning ? '手心向上，交给随机。' : `${pool.title} · 每次 ${pool.cost} 分`,
+    title: spinning ? (count > 1 ? `正在抽 ${count} 次…` : '正在落子…') : '这次的结果',
+    sub: spinning
+      ? (count > 1 ? `共 ${pool.cost * count} 分，结果马上揭晓。` : '手心向上，交给随机。')
+      : `${pool.title} · 每次 ${pool.cost} 分`,
     close: !spinning,
     body: `
       <div class="draw-stage">
@@ -802,11 +850,12 @@ export function renderDraw(ctx) {
             <div class="draw-points ${prize?.points ? '' : 'zero'}">${prize?.points ? `+${prize.points.toLocaleString('zh-CN')}` : '0 分'}</div>
             <div class="draw-net">本次 ${draw.points > 0 ? `收回 ${draw.points}` : '没有回报'} · 净变化 ${draw.points - draw.cost > 0 ? '+' : ''}${draw.points - draw.cost} · 余额 ${modal.balance}</div>
             <div class="draw-stock">${modal.remaining > 0 ? `奖池还剩 ${modal.remaining} 个奖品` : '奖池已抽完，记得重置'}</div>
+            ${prize?.type === 'reward' ? '<div class="draw-prize-note">这个奖品已放进「兑换」页，可以核销。</div>' : ''}
           </div>
           ${big ? '<div class="hint" style="margin-top:10px;color:var(--accent)">这一把，桌面都亮了一下。</div>' : ''}
           <div class="draw-actions">
             <button class="btn btn-ghost" data-action="close-modal">收下</button>
-            <button class="btn btn-secondary" data-action="draw-again" data-id="${pool.id}">再来一次</button>
+            <button class="btn btn-secondary" data-action="draw-again" data-id="${pool.id}" data-count="1">再来一次</button>
           </div>
         `}
       </div>

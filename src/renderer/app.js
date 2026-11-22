@@ -30,7 +30,7 @@ const ctx = {
   state: null,
   revision: 0,
   dataDir: '',
-  version: '0.12.3',
+  version: '0.13.0',
   hotkey: null,
   currentWeek: startOfWeekISO(todayISO()),
   selectedWeek: startOfWeekISO(todayISO()),
@@ -772,9 +772,11 @@ function syncPrizeDraft() {
   for (const row of rows) {
     const index = Number(row.dataset.prizeIndex);
     if (!modal.draft.prizes[index]) continue;
+    const type = row.querySelector('[data-prize-field="type"]');
     const label = row.querySelector('[data-prize-field="label"]');
     const weight = row.querySelector('[data-prize-field="weight"]');
     const points = row.querySelector('[data-prize-field="points"]');
+    if (type) modal.draft.prizes[index].type = type.value;
     if (label) modal.draft.prizes[index].label = label.value;
     if (weight) modal.draft.prizes[index].weight = weight.value;
     if (points) modal.draft.prizes[index].points = points.value;

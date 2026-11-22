@@ -46,6 +46,7 @@ function renderPool(ctx, pool) {
   const jackpot = Math.max(...pool.prizes.map((prize) => prize.points));
   const enough = ctx.balance >= pool.cost;
   const available = stock.remaining > 0;
+  const canDraw = (count) => stock.remaining >= count && ctx.balance >= pool.cost * count;
   const expanded = ctx.ui.expandedPools.has(pool.id);
   const ordered = [...odds.prizes].sort((a, b) => b.probability - a.probability);
   const remainingFor = (prize) => Math.max(0, Number(pool.remainingCounts?.[prize.id]) || 0);
@@ -55,13 +56,15 @@ function renderPool(ctx, pool) {
     (a, b) => b.points - a.points || b.weight - a.weight || a.label.localeCompare(b.label),
   );
   const tierColor = (prize) =>
-    prize.points <= 0
-      ? 'var(--faint)'
-      : prize.points >= jackpotPoints
-        ? 'var(--accent)'
-        : prize.points >= jackpotPoints * 0.25
-          ? '#9AA9D6'
-          : '#9DB8A0';
+    prize.type === 'reward'
+      ? '#D79A9A'
+      : prize.points <= 0
+        ? 'var(--faint)'
+        : prize.points >= jackpotPoints
+          ? 'var(--accent)'
+          : prize.points >= jackpotPoints * 0.25
+            ? '#9AA9D6'
+            : '#9DB8A0';
   return `
     <article class="pool-card" data-pool-id="${pool.id}">
       <div class="pool-top">
@@ -98,7 +101,7 @@ function renderPool(ctx, pool) {
                 <div class="pool-tier-row ${remaining === 0 ? 'empty' : ''}" style="--tier-color:${tierColor(prize)}">
                   <span class="pool-tier-dot"></span>
                   <span class="pool-tier-label">${escapeHtml(prize.label)}</span>
-                  <span class="pool-tier-points">${prize.points ? `+${prize.points}` : '0 分'}</span>
+                  <span class="pool-tier-points">${prize.type === 'reward' ? '奖品' : prize.points ? `+${prize.points}` : '0 分'}</span>
                   <strong class="pool-tier-count">${remaining}</strong>
                 </div>
               `;
@@ -116,7 +119,7 @@ function renderPool(ctx, pool) {
                   <span class="label">${escapeHtml(prize.label)}</span>
                   <span class="bar"><span style="width:${Math.max(1, prize.probability * 100)}%"></span></span>
                   <span class="prob">${(prize.probability * 100).toFixed(1)}%</span>
-                  <span class="prize">${prize.points ? `+${prize.points}` : '空'} · 剩 ${remainingFor(prize)}</span>
+                  <span class="prize">${prize.type === 'reward' ? '奖品' : prize.points ? `+${prize.points}` : '空'} · 剩 ${remainingFor(prize)}</span>
                 </div>`,
                 )
                 .join('')}
@@ -129,8 +132,16 @@ function renderPool(ctx, pool) {
         <button class="btn btn-secondary btn-sm" data-action="reset-pool" data-id="${pool.id}" aria-label="重置奖池" title="重置奖池">${icon('undo', 12)} 重置</button>
         <button class="btn btn-secondary btn-sm" data-action="edit-pool" data-id="${pool.id}" aria-label="编辑奖池" title="编辑奖池">${icon('edit', 12)}</button>
         <button class="btn btn-secondary btn-sm" data-action="delete-pool" data-id="${pool.id}" aria-label="删除奖池" title="删除奖池">${icon('trash', 12)}</button>
-        <button class="btn btn-primary btn-sm" data-action="draw-pool" data-id="${pool.id}" ${enough && available ? '' : 'disabled'}>
+        <button class="btn btn-primary btn-sm" data-action="draw-pool" data-id="${pool.id}" data-count="1" ${enough && available ? '' : 'disabled'}>
           ${icon('dice', 13)} ${!available ? '已抽完' : enough ? '抽一次' : `差 ${pool.cost - ctx.balance} 分`}
+        </button>
+      </div>
+      <div class="pool-draw-multi">
+        <button class="btn btn-secondary btn-sm" data-action="draw-pool" data-id="${pool.id}" data-count="5" ${canDraw(5) ? '' : 'disabled'}>
+          ${icon('dice', 12)} 五连 · ${pool.cost * 5} 分
+        </button>
+        <button class="btn btn-secondary btn-sm" data-action="draw-pool" data-id="${pool.id}" data-count="10" ${canDraw(10) ? '' : 'disabled'}>
+          ${icon('dice', 12)} 十连 · ${pool.cost * 10} 分
         </button>
       </div>
     </article>

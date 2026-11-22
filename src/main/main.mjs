@@ -934,6 +934,7 @@ async function runSelfTest() {
           remove: Boolean(document.querySelector('[data-action="delete-pool"]')),
           tiers: document.querySelectorAll('.pool-tier-row').length,
           stock: Boolean(document.querySelector('.pool-stock')),
+          multi: document.querySelectorAll('[data-action="draw-pool"][data-count="5"], [data-action="draw-pool"][data-count="10"]').length,
         };
         A['redeem-reward'](ctx, { dataset: { id: reward.id } });
         await A['confirm-modal'](ctx);
@@ -1005,6 +1006,14 @@ async function runSelfTest() {
           points: ctx.ui.modal?.draw?.points,
           balance: ctx.ui.modal?.balance,
           expected: beforeDraw - pool.cost + (ctx.ui.modal?.draw?.points || 0),
+        };
+        A['close-modal'](ctx);
+        A['draw-pool'](ctx, { dataset: { id: pool.id, count: '5' } });
+        await wait(2300);
+        results.multiDraw = {
+          phase: ctx.ui.modal?.phase,
+          count: ctx.ui.modal?.results?.length,
+          spent: ctx.ui.modal?.results?.reduce((sum, result) => sum + result.draw.cost, 0),
         };
         A['close-modal'](ctx);
 
@@ -1128,6 +1137,7 @@ async function runSelfTest() {
         results.poolCards?.remove &&
         results.poolCards?.tiers > 0 &&
         results.poolCards?.stock &&
+        results.poolCards?.multi === 2 &&
         results.poolEdit?.title === '编辑奖池' &&
         results.poolEdit?.prizeRows === results.poolEdit?.expectedRows &&
         results.poolEdit?.weightSteps?.includes('any') &&
@@ -1143,6 +1153,9 @@ async function runSelfTest() {
         results.redemptionUndo === false &&
         results.draw?.phase === 'result' &&
         results.draw?.balance === results.draw?.expected &&
+        results.multiDraw?.phase === 'result' &&
+        results.multiDraw?.count === 5 &&
+        results.multiDraw?.spent === (results.draw?.cost || 0) * 5 &&
         results.setting?.changed &&
         results.compact?.ui &&
         results.compact?.body &&

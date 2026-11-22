@@ -23,6 +23,7 @@ import {
   deleteReward,
   deleteTask,
   drawPool,
+  drawPoolMany,
   getBonusTask,
   getHabit,
   getPool,
@@ -181,12 +182,12 @@ function newPoolDraft() {
     cost: 100,
     size: 100,
     prizes: [
-      { label: '空手而归', weight: 65, points: 0 },
-      { label: '回一点血', weight: 20, points: 20 },
-      { label: '小小惊喜', weight: 9, points: 80 },
-      { label: '今晚走运', weight: 4, points: 300 },
-      { label: '深空回响', weight: 1.5, points: 1500 },
-      { label: '传说级大奖', weight: 0.5, points: 8888 },
+      { type: 'points', label: '空手而归', weight: 65, points: 0 },
+      { type: 'points', label: '回一点血', weight: 20, points: 20 },
+      { type: 'points', label: '小小惊喜', weight: 9, points: 80 },
+      { type: 'points', label: '今晚走运', weight: 4, points: 300 },
+      { type: 'points', label: '深空回响', weight: 1.5, points: 1500 },
+      { type: 'points', label: '传说级大奖', weight: 0.5, points: 8888 },
     ],
   };
 }
@@ -199,6 +200,7 @@ function poolToDraft(pool) {
     cost: pool.cost,
     size: pool.size || 100,
     prizes: pool.prizes.map((prize) => ({
+      type: prize.type === 'reward' ? 'reward' : 'points',
       label: prize.label,
       weight: prize.weight,
       points: prize.points,
@@ -302,16 +304,18 @@ function planStats(plan) {
   );
 }
 
-function startDraw(ctx, poolId) {
+function startDraw(ctx, poolId, count = 1) {
   const pool = getPool(ctx.state, poolId);
   if (!pool) return;
+  const times = [1, 5, 10].includes(Number(count)) ? Number(count) : 1;
   const balance = computeBalance(ctx.state);
-  if (poolStock(pool).remaining <= 0) {
-    ctx.showToast('这个奖池已经抽完了，先重置');
+  const stock = poolStock(pool);
+  if (stock.remaining < times) {
+    ctx.showToast(stock.remaining <= 0 ? '这个奖池已经抽完了，先重置' : `库存只剩 ${stock.remaining} 个`);
     return;
   }
-  if (balance < pool.cost) {
-    ctx.showToast(`还差 ${pool.cost - balance} 积分`);
+  if (balance < pool.cost * times) {
+    ctx.showToast(`还差 ${pool.cost * times - balance} 积分`);
     return;
   }
   if (ctx.ui.drawTimer) ctx.clearDrawTimer();
@@ -319,6 +323,7 @@ function startDraw(ctx, poolId) {
     type: 'draw',
     poolId,
     phase: 'spinning',
+    count: times,
     balance,
   };
   ctx.renderOverlayOnly();
@@ -336,25 +341,47 @@ function startDraw(ctx, poolId) {
   const timeout = setTimeout(() => {
     clearInterval(interval);
     const snapshot = structuredClone(ctx.state);
-    const result = drawPool(ctx.state, poolId);
+    const result =
+      times === 1
+        ? drawPool(ctx.state, poolId)
+        : drawPoolMany(ctx.state, poolId, times);
     if (!result.ok) {
       ctx.closeModal();
       ctx.showToast(result.error || '抽奖失败');
       return;
     }
     ctx.ui.drawTimer = null;
-    ctx.ui.modal = {
-      type: 'draw',
-      poolId,
-      phase: 'result',
-      draw: result.draw,
-      prize: result.prize,
-      balance: result.balance,
-      remaining: result.remaining,
-    };
+    if (times === 1) {
+      ctx.ui.modal = {
+        type: 'draw',
+        poolId,
+        phase: 'result',
+        count: 1,
+        draw: result.draw,
+        prize: result.prize,
+        redemption: result.redemption,
+        balance: result.balance,
+        remaining: result.remaining,
+      };
+    } else {
+      ctx.ui.modal = {
+        type: 'draw',
+        poolId,
+        phase: 'result',
+        count: times,
+        draws: result.draws,
+        prizes: result.prizes,
+        results: result.results,
+        redemptions: result.redemptions,
+        balance: result.balance,
+        remaining: result.remaining,
+      };
+    }
     ctx.render();
     ctx.persist();
-    if (result.prize.points >= 1000) launchConfetti(ctx);
+    if ((times === 1 ? result.prize.points : result.prizes.some((prize) => prize.points >= 1000))) {
+      launchConfetti(ctx);
+    }
     // Keep the snapshot referenced for debugging without offering a lottery undo.
     void snapshot;
   }, duration);
@@ -1355,7 +1382,7 @@ export const ACTIONS = {
       ctx.showToast('一个奖池最多 12 种结果');
       return;
     }
-    ctx.ui.modal.draft.prizes.push({ label: '新结果', weight: 5, points: 0 });
+    ctx.ui.modal.draft.prizes.push({ type: 'points', label: '新结果', weight: 5, points: 0 });
     ctx.renderOverlayOnly();
   },
   'remove-prize': (ctx, el) => {
@@ -1406,9 +1433,10 @@ export const ACTIONS = {
       cost: Number(draft.cost),
       size,
       prizes: draft.prizes.map((prize) => ({
+        type: prize.type === 'reward' ? 'reward' : 'points',
         label: prize.label,
         weight: Number(prize.weight),
-        points: Number(prize.points),
+        points: prize.type === 'reward' ? 0 : Number(prize.points),
       })),
     };
     try {
@@ -1451,8 +1479,8 @@ export const ACTIONS = {
     else ctx.ui.expandedPools.add(id);
     ctx.render();
   },
-  'draw-pool': (ctx, el) => startDraw(ctx, el.dataset.id),
-  'draw-again': (ctx, el) => startDraw(ctx, el.dataset.id),
+  'draw-pool': (ctx, el) => startDraw(ctx, el.dataset.id, Number(el.dataset.count) || 1),
+  'draw-again': (ctx, el) => startDraw(ctx, el.dataset.id, Number(el.dataset.count) || 1),
   'reset-pool': (ctx, el) => {
     const pool = getPool(ctx.state, el.dataset.id);
     if (!pool) return;

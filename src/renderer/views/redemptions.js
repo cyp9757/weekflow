@@ -99,16 +99,17 @@ export function renderRedemptionsView(ctx) {
                         .map((item) => {
                           const reward = (ctx.state.rewards || []).find((entry) => entry.id === item.rewardId);
                           const isUsed = Boolean(item.usedAt);
+                          const fromLottery = item.source === 'lottery';
                           return `
                             <article class="redemption-row ${isUsed ? 'used' : ''}">
-                              <span class="redemption-icon">${isUsed ? icon('check', 14) : escapeHtml(reward?.icon || '🎁')}</span>
+                              <span class="redemption-icon">${isUsed ? icon('check', 14) : escapeHtml(reward?.icon || item.icon || '🎁')}</span>
                               <div class="redemption-copy">
-                                <div class="redemption-title">${escapeHtml(item.title)}</div>
-                                <div class="redemption-time"><span>兑换时间</span>${formatDateTime(item.at)}</div>
+                                <div class="redemption-title">${escapeHtml(item.title)}${fromLottery ? ' <span class="redemption-source">抽奖</span>' : ''}</div>
+                                <div class="redemption-time"><span>${fromLottery ? '获得时间' : '兑换时间'}</span>${formatDateTime(item.at)}</div>
                                 <div class="redemption-time ${isUsed ? '' : 'pending'}"><span>核销时间</span>${isUsed ? formatDateTime(item.usedAt) : '尚未核销'}</div>
                               </div>
                               <div class="redemption-side">
-                                <span class="redemption-cost">-${item.cost} 分</span>
+                                <span class="redemption-cost">${fromLottery ? '奖品' : `-${item.cost} 分`}</span>
                                 <span class="redemption-status ${isUsed ? 'done' : ''}">${isUsed ? '已核销' : '待使用'}</span>
                                 <button class="redemption-use" data-action="use-redemption" data-id="${item.id}">
                                   ${isUsed ? '撤销核销' : '核销'}
